@@ -27,13 +27,11 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = as_bool(os.getenv("DEBUG", "true"))
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
+# ALLOWED_HOSTS = ["*"]
 ALLOWED_HOSTS = [
     value.strip()
     for value in os.getenv("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
 ]
-
-
-# SECRET_KEY = "django-insecure-0peo@#x9jur3!h$ryje!$879xww8y1y66jx!%*#ymhg&jkozs2"
 
 # Application definition
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -45,7 +43,7 @@ INSTALLED_APPS = [
     "unfold.contrib.import_export",  # optional, if django-import-export package is used
     "unfold.contrib.guardian",  # optional, if django-guardian package is used
     "unfold.contrib.simple_history",  # optional, if django-simple-history package is used
-    # Django
+    # "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -55,11 +53,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     # Third-party
-    "drf_spectacular_sidecar",
-    "django_celery_beat",
     "allauth",
+    "corsheaders",
     "allauth.account",
-    "dj_rest_auth.registration",
+    "allauth.socialaccount",
     "crispy_forms",
     "crispy_bootstrap5",
     "debug_toolbar",
@@ -67,14 +64,17 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "django_filters",
     "drf_spectacular",
-    "coverage",
     "import_export",
-    "django_extensions",
     "dj_rest_auth",
     "rest_framework.authtoken",
+    "phonenumber_field",
+    "drf_yasg",
+    "django_celery_beat",
+    "ckeditor",
     # Local
     "accounts",
-    "pages",
+    "datatable",
+    "cbs",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
@@ -82,15 +82,17 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # WhiteNoise
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.locale.LocaleMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",  # Django Debug Toolbar
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",  # django-allauth
+    "accounts.middleware.UserLastSeenMiddleware",
+    "accounts.middleware.CustomCorsMiddleware",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#root-urlconf
@@ -130,8 +132,8 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("POSTGRES_DB", "paperlessbranch"),
-            "USER": os.getenv("POSTGRES_USER", "admin"),
+            "NAME": os.getenv("POSTGRES_DB", "gtidigibankdb"),
+            "USER": os.getenv("POSTGRES_USER", "gtiadmin"),
             "PASSWORD": os.getenv("POSTGRES_PASSWORD", "localhost"),
             "HOST": os.getenv("POSTGRES_HOST", "db"),  # set in docker-compose.yml
             "PORT": int(os.getenv("POSTGRES_PORT", 5432)),  # default postgres port
@@ -222,9 +224,10 @@ if bool(os.getenv("USE_SMTP_EMAIL", True)):
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-EMAIL_USE_TLS = True
+EMAIL_USE_TLS = as_bool(os.getenv("EMAIL_USE_TLS"))
+EMAIL_USE_SSL = as_bool(os.getenv("EMAIL_USE_SSL"))
 EMAIL_HOST = os.getenv("EMAIL_HOST")
-EMAIL_PORT = 587
+EMAIL_PORT = os.getenv("EMAIL_PORT")
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
@@ -270,8 +273,8 @@ ACCOUNT_UNIQUE_EMAIL = True
 # X_FRAME_OPTIONS = "ALLOW"
 CORS_ALLOW_ALL_ORIGINS = True
 
-PHONENUMBER_DEFAULT_REGION = "GH"
-PHONENUMBER_DB_FORMAT = "NATIONAL"
+# PHONENUMBER_DEFAULT_REGION = "ST"
+# PHONENUMBER_DB_FORMAT = "NATIONAL"
 
 
 REST_AUTH = {
@@ -280,7 +283,7 @@ REST_AUTH = {
     "JWT_SERIALIZER": "dj_rest_auth.serializers.JWTSerializer",
     "JWT_SERIALIZER_WITH_EXPIRATION": "dj_rest_auth.serializers.JWTSerializerWithExpiration",
     "JWT_TOKEN_CLAIMS_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainPairSerializer",
-    "USER_DETAILS_SERIALIZER": "accounts.serializers.UserSerializer",
+    # "USER_DETAILS_SERIALIZER": "accounts.serializers.UserSerializer",
     "PASSWORD_RESET_SERIALIZER": "dj_rest_auth.serializers.PasswordResetSerializer",
     "PASSWORD_RESET_CONFIRM_SERIALIZER": "dj_rest_auth.serializers.PasswordResetConfirmSerializer",
     "PASSWORD_CHANGE_SERIALIZER": "dj_rest_auth.serializers.PasswordChangeSerializer",
@@ -304,10 +307,10 @@ REST_AUTH = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "PAPERLESS BRANCH API",
+    "TITLE": "GTI Digital Bank",
     "DESCRIPTION": (
-        "Api Documentation for PAPERLESS BRANCH DONATION PLATFORM. @Copyright PRINCE ACHEAMPONG."
-        " Reach out to me on pacheampong227@gmail.com"
+        "Api Documentation for GTI Digital BankGTI. @Copyright INLAKS."
+        " Reach out to me on pacheampong@inlaks.com"
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
@@ -431,7 +434,7 @@ CELERY_TASK_ALWAYS_EAGER = as_bool(
 
 UNFOLD = {
     "SITE_TITLE": "BACK OFFICE",
-    "SITE_HEADER": "PAPERLESS BACK OFFICE ",
+    "SITE_HEADER": "GTI BACK OFFICE ",
     "COLORS": {
         "font": {
             "subtle-light": "107 114 128",
@@ -457,5 +460,51 @@ UNFOLD = {
     },
 }
 
+# SMS configurations
+SMS_API_URL = os.getenv("SMS_API_URL")
+SMS_API_USERNAME = os.getenv("SMS_API_USERNAME")
+SMS_API_PASSWORD = os.getenv("SMS_API_PASSWORD")
+SMS_API_KEY = os.getenv("SMS_API_KEY")
+SMS_SENDER_ID = os.getenv("SMS_SENDER_ID")
+
+# T24 API
+T24_BASE_URL = os.getenv("T24_BASE_URL")
+T24_CREDENTIALS = os.getenv("T24_CREDENTIALS")
+
+
 # allow all headers
 CORS_ALLOW_HEADERS = "*"
+
+# HTTP SETTINGS
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
+# SECURE_SSL_REDIRECT = True
+
+# SESSION
+# SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# SESSION_COOKIE_AGE = 2 * 60
+
+
+# UNITEL
+UNITEL_AIRTIME_URL = os.getenv("UNITEL_AIRTIME_URL", "")
+UNITEL_ENV = os.getenv("UNITEL_ENV", "")
+UNITEL_GL_ACCOUNT = os.getenv("UNITEL_GL_ACCOUNT", "")
+
+
+# WALLET
+WALLET_BASE_URL = os.getenv("WALLET_BASE_URL", "")
+WALLET_API_KEY = os.getenv("WALLET_API_KEY", "")
+
+# TAX DECLARATION
+TAX_DECLARATION_BASE_URL = os.getenv("TAX_DECLARATION_BASE_URL", "")
+TAX_DECLARATION_USERNAME = os.getenv("TAX_DECLARATION_USERNAME", "")
+TAX_DECLARATION_PASSWORD = os.getenv("TAX_DECLARATION_PASSWORD", "")
+TAX_DECLARATION_OPERATION = os.getenv("TAX_DECLARATION_OPERATION", "")
+TAX_GL_ACCOUNT = os.getenv("TAX_GL_ACCOUNT", "")
+
+
+# TWILIO CREDENTIALS
+TWILIO_NUMBER = os.getenv("TWILIO_NUMBER", default="default")
+TWILIO_SMS_NUMBER = os.getenv("TWILIO_SMS_NUMBER", default="default")
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", default="default")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", default="default")

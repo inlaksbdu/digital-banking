@@ -1,6 +1,8 @@
 import random
 import string
-from accounts.models import CustomUser
+import datetime
+
+# from cbs import models as cbsmodel
 
 
 def generate_otp(n):
@@ -25,5 +27,6 @@ def generate_access_code():
     return access_code
 
 
-def email_address_exists(email):
-    return CustomUser.objects.filter(email__iexact=email).exists()
+def parse_dob(dob_str):
+    """Convert 'YYYYMMDD' string into a datetime.date object."""
+    return datetime.datetime.strptime(dob_str, "%Y%m%d").date()

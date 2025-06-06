@@ -1,13 +1,48 @@
+from django.http import HttpRequest
 from rest_framework import serializers
-from .models import CustomUser
-from dj_rest_auth.serializers import LoginSerializer
-from datetime import datetime, timedelta
-from django.core.cache import cache
-from django.core.exceptions import ObjectDoesNotExist
+from .models import (
+    CustomUser,
+    AccessGuardian,
+)
 from helpers import exceptions
 from helpers.functions import generate_otp
+from dj_rest_auth.serializers import LoginSerializer
 from django.db.models import Q
-from django.http import HttpRequest
+from datetime import datetime, timedelta
+from django.core.exceptions import ObjectDoesNotExist
+from accounts.tasks import generic_send_mail
+from phonenumber_field.serializerfields import PhoneNumberField
+from django.core.cache import cache
+import user_agents
+from t24.t24_requests import T24Requests
+from .tasks import count_visit
+from loguru import logger
+
+
+class UserSerializer(serializers.ModelSerializer):
+    secure_pin_set = serializers.SerializerMethodField(read_only=True)
+
+    def get_secure_pin_set(self, obj):
+        return True if obj.secure_pin else False
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            "id",
+            "username",
+            "email",
+            "phone_number",
+            "first_name",
+            "last_name",
+            "fullname",
+            "shortname",
+            "password_set",
+            "secure_pin_set",
+            "deactivated_account",
+            "last_login",
+            "last_login_ip",
+            "t24_customer_id",
+        )
 
 
 class CustomLoginSerializer(LoginSerializer):
@@ -27,14 +62,14 @@ class CustomLoginSerializer(LoginSerializer):
                 _username.save()
 
                 # send otp to the user's email
-                # message = "OTP for your account verification is {}.".format(
-                #     otp_generated
-                # )
-                # generic_send_mail.delay(
-                #     message=message,
-                #     recipient_list=_username.email,
-                #     title="Account Verification OTP",
-                # )
+                message = "OTP for your account verification is {}.".format(
+                    otp_generated
+                )
+                generic_send_mail.delay(
+                    message=message,
+                    recipient_list=_username.email,
+                    title="Account Verification OTP",
+                )
                 # else if
                 raise exceptions.InactiveAccountException()
         except ObjectDoesNotExist:
@@ -47,6 +82,29 @@ class CustomLoginSerializer(LoginSerializer):
         else:
             ip = request.META.get("REMOTE_ADDR")
         return ip
+
+    def log_access_guardian(self, request, log_type, phone_number=""):
+        try:
+            x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+            user_agent_string = request.META.get("HTTP_USER_AGENT", "")
+            channel = request.META.get("HTTP_CHANNEL", "Other")
+            agent = user_agents.parse(user_agent_string)
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(",")[0]
+            else:
+                ip = request.META.get("REMOTE_ADDR")
+            AccessGuardian.objects.create(
+                log_type=log_type,
+                phone_number=phone_number,
+                device=channel,
+                browser=agent.browser.family,
+                browser_version=agent.browser.version_string,
+                os=agent.os.family,
+                os_version=agent.os.version_string,
+                ip_address=ip,
+            )
+        except Exception:
+            pass
 
     def validate(self, attrs):
         request: HttpRequest = self.context.get("request")
@@ -61,6 +119,11 @@ class CustomLoginSerializer(LoginSerializer):
             attempt = 1
         cache.set(f"login-attempt/{username}", attempt, 60 * 5)
         if attempt > 5:
+            self.log_access_guardian(
+                request=request,
+                log_type=AccessGuardian.LogTypes.LOGIN_ATTEMPT,
+                phone_number=username,
+            )
             raise exceptions.TooManyLoginAttemptsException()
 
         if not (username or email):
@@ -102,14 +165,222 @@ class CustomLoginSerializer(LoginSerializer):
         except:
             pass
         cache.delete(f"login-attempt/{username}")
+
+        # count customer visit
+        count_visit.delay(user_id=user.id)
         attrs = super().validate(attrs)
         return attrs
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = (
-            "id",
-            "email",
+class SignUpNewCustomerValidationSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False, allow_null=True)
+    phone_number = PhoneNumberField(required=False)
+
+    def validate(self, attrs):
+        if not (attrs.get("email") or attrs.get("phone_number")):
+            raise exceptions.ProvideEmailOrPhoneNumberException()
+        phone_number = attrs.get("phone_number")
+        email = attrs.get("email")
+        # check if phone number existsF
+        if phone_number:
+            if CustomUser.objects.filter(phone_number=phone_number).exists():
+                raise exceptions.PhoneNumberAlreadyInUseException()
+        # check if email exists
+        if email:
+            if CustomUser.objects.filter(email=email).exists():
+                raise exceptions.EmailAlreadyInUseException()
+
+        return super().validate(attrs)
+
+
+class SignUpNewCustomerVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    email_otp = serializers.CharField(required=False)
+    phone = serializers.CharField(required=False)
+    phone_otp = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        email = attrs.get("email")
+        email_otp = attrs.get("email_otp")
+        phone = attrs.get("phone")
+        phone_otp = attrs.get("phone_otp")
+
+        if not (email and email_otp) and not (phone and phone_otp):
+            raise serializers.ValidationError(
+                "At least email+OTP or phone+OTP must be provided."
+            )
+
+        return attrs
+
+
+class SignupSecurityQuestionSerializer(serializers.Serializer):
+    question = serializers.IntegerField()
+    answer = serializers.CharField()
+
+
+class SignUpNewCustomerSerializer(serializers.Serializer):
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    email = serializers.EmailField()
+    phone_number = PhoneNumberField()
+    nationality = serializers.CharField()
+    gender = serializers.CharField()
+    date_of_birth = serializers.DateField()
+    profile_picture = serializers.ImageField()
+    id_front = serializers.ImageField()
+    id_back = serializers.ImageField(required=False, allow_null=True)
+    id_number = serializers.CharField()
+    date_of_issuance = serializers.DateField()
+    date_of_expiry = serializers.DateField()
+    place_of_issuance = serializers.CharField()
+    security_questions = serializers.ListField(
+        child=SignupSecurityQuestionSerializer(),
+    )
+    password = serializers.CharField()
+    secure_pin = serializers.CharField()
+    verification_code = serializers.CharField()
+
+    def validate_verification_code(self, verification_code):
+        # check if verification code is correct
+        email = self.initial_data.get("email")
+        phone_number = self.initial_data.get("phone_number")
+
+        cached_email_code = cache.get(
+            f"account_verification/{email}/verifcode/new-customer/",
         )
+        cached_phone_code = cache.get(
+            f"account_verification/{phone_number}/verifcode/new-customer/",
+        )
+
+        if not str(verification_code) in [cached_email_code, cached_phone_code]:
+            raise exceptions.GeneralException(
+                detail="Sorry, the provied verification Code is Invalid."
+            )
+        return verification_code
+
+    def validate_email(self, email):
+        # check if email exists
+        if CustomUser.objects.filter(email=email).exists():
+            raise exceptions.EmailAlreadyInUseException()
+        return email
+
+    def validate_secure_pin(self, secure_pin):
+        # check if secure is not more or less than 6 digits
+        if len(secure_pin) != 6:
+            raise exceptions.GeneralException(
+                detail="Sorry, your PIN should be 6 digits."
+            )
+        # check if pin is not only numbers
+        if not secure_pin.isnumeric():
+            raise exceptions.GeneralException(
+                detail="Sorry, your PIN should be only digits."
+            )
+        return secure_pin
+
+
+class SignUpExistingCustomerEmailAccountValidationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    account_number = serializers.CharField()
+
+    def validate_email(self, email):
+        # check if email exists
+        if CustomUser.objects.filter(email=email).exists():
+            raise exceptions.EmailAlreadyInUseException()
+        return email
+
+    def validate_account_number(self, account_number):
+        # check if account number exists in core banking
+        check_account_number = T24Requests.get_account_details(account_number)
+        if not check_account_number:
+            raise exceptions.AccountNumberNotExist()
+
+        logger.info(check_account_number)
+        account_details = check_account_number[0]
+        customer_phone_number = account_details.get("customerNo")
+
+        # GET INFO WITH PHONE NUMBER
+        customer_info = T24Requests.get_customer_info_with_phone(customer_phone_number)
+
+        # get customer email and compare with entered email
+        customer_email = customer_info.get("customerEmail")
+
+        # UNCOMMENT IF YOU WANT BY PASS ACCOUNT EMAIL CHECK
+        if str(customer_email).lower() != str(self.initial_data.get("email")).lower():
+            raise exceptions.GeneralException(
+                detail="Sorry, the email entered does not match the account number."
+            )
+        account_number = {
+            "account_number": account_number,
+            "phone_number": customer_phone_number,
+            "customer_email": customer_email,
+        }
+        return account_number
+
+
+class SignUpExistingCustomerVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp_code = serializers.CharField()
+
+
+class SignUpExistingCustomerSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    account_number = serializers.CharField()
+    security_questions = serializers.ListField(child=SignupSecurityQuestionSerializer())
+    password = serializers.CharField()
+    secure_pin = serializers.CharField()
+    verification_code = serializers.CharField()
+
+    def validate_verification_code(self, verification_code):
+        # check if verification code is correct
+        email = self.initial_data.get("email")
+        verification_code = cache.get(f"account_verification/{email}/verifcode/")
+        if str(verification_code) != str(self.initial_data.get("verification_code")):
+            raise exceptions.GeneralException(
+                detail="Sorry, the provied verification Code is Invalid."
+            )
+        return verification_code
+
+    def validate_email(self, email):
+        # check if email exists
+        if CustomUser.objects.filter(email=email).exists():
+            raise exceptions.EmailAlreadyInUseException()
+        return email
+
+    def validate_secure_pin(self, secure_pin):
+        # check if secure is not more or less than 6 digits
+        if len(secure_pin) != 6:
+            raise exceptions.GeneralException(
+                detail="Sorry, your PIN should be 6 digits."
+            )
+        # check if pin is not only numbers
+        if not secure_pin.isnumeric():
+            raise exceptions.GeneralException(
+                detail="Sorry, your PIN should be only digits."
+            )
+        return secure_pin
+
+    def validate_account_number(self, account_number):
+        # check if account number exists in core banking
+        check_account_number = T24Requests.get_account_details(account_number)
+        if not check_account_number:
+            raise exceptions.AccountNumberNotExist()
+
+        logger.info(check_account_number)
+        account_details = check_account_number[0]
+        customer_phone_number = account_details.get("customerNo")
+
+        # GET INFO WITH PHONE NUMBER
+        customer_info = T24Requests.get_customer_info_with_phone(customer_phone_number)
+
+        # get customer email and compare with entered email
+        customer_email = customer_info.get("customerEmail")
+        if str(customer_email).lower() != str(self.initial_data.get("email")).lower():
+            raise exceptions.GeneralException(
+                detail="Sorry, the email entered does not match the account number."
+            )
+        account_number = {
+            "account_number": account_number,
+            "phone_number": customer_phone_number,
+            "customer_info": customer_info,
+        }
+        return account_number

@@ -1,30 +1,77 @@
 from django.contrib import admin
-from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
+from . import models
+from unfold.admin import ModelAdmin
+from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
-from .forms import CustomUserCreationForm, CustomUserChangeForm
-from .models import CustomUser
 
-
-class CustomUserAdmin(UserAdmin):
-    add_form = CustomUserCreationForm
-    form = CustomUserChangeForm
-    model = CustomUser
-    list_display = [
-        "email",
-        "username",
+@admin.register(models.CustomUser)
+class UserAdmin(UserAdmin, ModelAdmin):
+    form = UserChangeForm
+    add_form = UserCreationForm
+    change_password_form = AdminPasswordChangeForm
+    readonly_fields = ("secure_pin", "uuid", "fcm_app_token")
+    list_filter = [
+        "password_set",
     ]
-
-    # Explicitly define add_fieldsets to prevent unexpected fields
-    add_fieldsets = (
+    list_display = [
+        "id",
+        "fullname",
+        "email",
+        "phone_number",
+        "date_joined",
+        "last_login",
+    ]
+    fieldsets = [
+        *UserAdmin.fieldsets,
+    ]
+    fieldsets.insert(
+        2,
         (
             None,
             {
-                "classes": ("wide",),
-                "fields": ("username", "email", "password1", "password2"),
+                "fields": (
+                    "fullname",
+                    "phone_number",
+                    "secure_pin",
+                    "password_set",
+                    "fcm_app_token",
+                    "last_login_ip",
+                    "last_seen",
+                    "uuid",
+                ),
             },
         ),
     )
 
 
-admin.site.register(CustomUser, CustomUserAdmin)
+@admin.register(models.CustomerProfile)
+class SecurityQuestionAdmin(ModelAdmin):
+    list_display = [
+        "id",
+        "user_account",
+        "t24_customer_id",
+        "mnemonic",
+        "gender",
+        "date_of_birth",
+        "date_created",
+    ]
+    search_fields = ["user_account", "t24_customer_id", "mnemonic"]
+    readonly_fields = [
+        "user_account",
+        "t24_customer_id",
+        "mnemonic",
+        "uuid",
+        "extra_data",
+    ]
+
+
+@admin.register(models.UserSecurityQuestion)
+class UserSecurityQuestionAdmin(ModelAdmin):
+    list_display = [
+        "id",
+        "user",
+        "question",
+    ]
+    search_fields = ["user", "question"]
+    readonly_fields = ["user", "answer_hash", "question", "uuid"]
