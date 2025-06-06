@@ -17,7 +17,7 @@ services:
       - web
 
   web:
-    image: &image plebranch
+    image: &image digital-banking
     build: .
     deploy:
       replicas: 4
