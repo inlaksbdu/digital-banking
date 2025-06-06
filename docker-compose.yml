@@ -1,14 +1,14 @@
 services:
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.25-alpine
     restart: always
     volumes:
-        - ./static:/code/static
-        - ./media:/code/media
-        - ./nginx/:/etc/nginx/conf.d
+      - ./static:/code/static
+      - ./media:/code/media
+      - ./nginx/:/etc/nginx/conf.d
 
     ports:
-      - '5555:80'
+      - "8030:80"
     deploy:
       resources:
         limits:
@@ -20,31 +20,38 @@ services:
     image: &image digital-banking
     build: .
     deploy:
-      replicas: 4
-      update_config:
-        parallelism: 2
-        delay: 10s
-        order: start-first
+      replicas: 2
       resources:
         limits:
-          cpus: '0.50'
+          cpus: "0.40"
           memory: 512M
     restart: always
-    command:  ["uvicorn", "--host", "0.0.0.0", "--port", "8000", "--workers", "2",  "--log-level", "info", "config.asgi:application"]
+    command:
+      [
+        "gunicorn",
+        "--bind",
+        "0.0.0.0:8000",
+        "--log-level",
+        "debug",
+        "--log-file=-",
+        "--capture-output",
+        "--workers",
+        "2",
+        "-k",
+        "uvicorn.workers.UvicornWorker",
+        "config.asgi:application",
+      ]
     volumes: &volumes
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./static:/code/static
       - ./media:/code/media
-    env_file: &env_file
-      ./.docker.env
+    env_file: &env_file ./.docker.env
     depends_on:
-      - db
       - redis
+      - db
 
   db:
     image: postgres:16-alpine
     command: postgres -N 568
-    restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
@@ -58,60 +65,68 @@ services:
     image: redis:7-alpine
     command: redis-server --loglevel warning
     volumes:
-      - redis_data:/data
+      - ./redis_data:/data
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 256M
 
   celery-beat:
     image: *image
     restart: unless-stopped
     env_file: *env_file
-    command: ["celery", "-A", "config", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler",]
+    command:
+      [
+        "celery",
+        "-A",
+        "config",
+        "beat",
+        "-l",
+        "info",
+        "--scheduler",
+        "django_celery_beat.schedulers:DatabaseScheduler",
+      ]
     deploy:
       resources:
         limits:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
     volumes: *volumes
     depends_on:
-      - db
       - redis
+      - db
 
   migration:
     image: *image
     env_file: *env_file
-    command: /bin/sh -c 'python manage.py migrate && python manage.py collectstatic --noinput && python manage.py seed_db'
+    command: /bin/sh -c 'python manage.py migrate && python manage.py collectstatic --noinput'
     deploy:
       resources:
         limits:
-          cpus: '0.2'
-          memory: 256M
+          cpus: "0.2"
+          memory: 128M
     volumes: *volumes
     depends_on:
-      - db
       - redis
+      - db
 
   celery-worker:
     image: *image
+
     restart: unless-stopped
     env_file: *env_file
-    command: ["celery", "-A", "config", "worker",  "-l", "DEBUG", "--concurrency", "3"]
+    command:
+      ["celery", "-A", "config", "worker", "-l", "DEBUG", "--concurrency", "3"]
     deploy:
-      replicas: 3
+      replicas: 1
       resources:
         limits:
-          cpus: '0.4'
+          cpus: "0.4"
           memory: 768M
-      update_config:
-        parallelism: 2
-        delay: 10s
-        order: stop-first
     volumes: *volumes
     depends_on:
-      - db
       - redis
+      - db
+
 volumes:
   postgres_data:
-  redis_data:

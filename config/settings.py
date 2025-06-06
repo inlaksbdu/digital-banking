@@ -132,7 +132,7 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("POSTGRES_DB", "postgres"),
+            "NAME": os.getenv("POSTGRES_DB", "digitalbanking"),
             "USER": os.getenv("POSTGRES_USER", "postgres"),
             "PASSWORD": os.getenv("POSTGRES_PASSWORD", "localhost"),
             "HOST": os.getenv("POSTGRES_HOST", "db"),  # set in docker-compose.yml

@@ -8,18 +8,31 @@ ENV PYTHONUNBUFFERED 1
 # Create and set work directory called `app`
 RUN mkdir -p /code
 WORKDIR /code
+
+# Install system dependencies for building pycairo, weasyprint, and related libraries
 RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     --mount=target=/var/cache/apt,type=cache,sharing=locked \
     apt update && \
-    apt upgrade -y
+    apt upgrade -y && \
+    apt-get install -y \
+    build-essential \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libgdk-pixbuf2.0-dev \
+    libffi-dev \
+    libjpeg-dev \
+    libxslt1-dev \
+    zlib1g-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/
 
 # Install dependencies
 COPY requirements.txt /tmp/requirements.txt
 
-RUN  --mount=type=cache,target=/root/.cache set -ex && \
+RUN --mount=type=cache,target=/root/.cache set -ex && \
     pip install --upgrade pip && \
     pip install -r /tmp/requirements.txt
 
+# Clean up cache to reduce image size
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/
 
 # Copy local project
