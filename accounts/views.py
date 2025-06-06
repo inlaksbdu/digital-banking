@@ -1,3 +1,4 @@
+import json
 from . import serializers
 from .models import (
     CustomUser,
@@ -8,17 +9,22 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.generics import CreateAPIView
 from django.db import transaction
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import make_password, check_password
 from django.core.cache import cache
 from helpers import exceptions
 from helpers.functions import generate_otp, generate_reference_id, parse_dob
 from datatable import models as data_tables
 from accounts.tasks import generic_send_sms, generic_send_mail
 from loguru import logger
-import json
 from t24.t24_requests import T24Requests
 from cbs import models as cbs_models
 from drf_spectacular.utils import extend_schema
+from dj_rest_auth.app_settings import api_settings
+from dj_rest_auth.views import sensitive_post_parameters_m
+from rest_framework import permissions as rest_permissions
+from django.utils.translation import gettext_lazy as _
+from rest_framework.generics import GenericAPIView
+from rest_framework.viewsets import ModelViewSet
 
 
 @extend_schema(tags=["Signup New Customer"])
@@ -372,3 +378,245 @@ class SignUpExistingCustomerView(CreateAPIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+@extend_schema(tags=["Password Change"])
+class PasswordChangeView(GenericAPIView):
+    """
+    Calls Django Auth SetPasswordForm save method.
+
+    Accepts the following POST parameters: new_password1, new_password2
+    Returns the success/fail message.
+    """
+
+    serializer_class = api_settings.PASSWORD_CHANGE_SERIALIZER
+    permission_classes = (rest_permissions.IsAuthenticated,)
+    throttle_scope = "dj_rest_auth"
+
+    @sensitive_post_parameters_m
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        user = self.request.user
+        user.password_set = True
+        user.save()
+        return Response({"detail": _("New password has been saved.")})
+
+
+@extend_schema(tags=["Password Reset"])
+class ResetPasswordOtpView(CreateAPIView):
+    """
+    This view sends otp to users who wants to reset thier password.
+    """
+
+    permission_classes = (rest_permissions.AllowAny,)
+    allowed_methods = ("POST", "OPTIONS", "HEAD")
+    serializer_class = serializers.ResetPasswordOtpSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        _ = serializer.save()
+        return Response(
+            {"status": True, "message": "OTP successfully sent"},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Password Reset"])
+class ResetPasswordView(CreateAPIView):
+    """
+    This view sends otp to users who wants to reset thier password.
+    """
+
+    permission_classes = (rest_permissions.AllowAny,)
+    allowed_methods = ("POST", "OPTIONS", "HEAD")
+    serializer_class = serializers.ResetPasswordSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        _ = serializer.save()
+        return Response(
+            {"message": "You have successfully reset your password."},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Password Reset"])
+class VerifyResetPasswordOTPView(CreateAPIView):
+    """
+    This view verifies the otp sent for password reset.
+    """
+
+    permission_classes = (rest_permissions.AllowAny,)
+    allowed_methods = ("POST", "OPTIONS", "HEAD")
+    serializer_class = serializers.VerifyResetPasswordOtpSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        _ = serializer.save()
+        return Response(
+            {"message": "OTP successfully verified"},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Password Reset"])
+class VerifyOldPasswrodViewset(CreateAPIView):
+    """
+    This view verifies the otp sent for password reset.
+    """
+
+    permission_classes = (rest_permissions.AllowAny,)
+    allowed_methods = ("POST", "OPTIONS", "HEAD")
+    serializer_class = serializers.VerifyOldPasswordSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        password = serializer.validated_data["password"]
+        if not request.user.check_password(password):
+            attempt = cache.get(f"password-verification/{request.user.id}")
+            if attempt:
+                attempt += 1
+            else:
+                attempt = 1
+
+            cache.set(f"password-verification/{request.user.id}", attempt, 60 * 5)
+
+            if attempt > 3:
+                log_access_guardian(
+                    request=request,
+                    log_type=str(data_tables.AccessGuardian.LogTypes.PASSWORD_CHANGE),
+                    phone_number=str(request.user.phone_number),
+                )
+                raise exceptions.TooManyAttempt()
+            return Response(
+                {"status": False, "message": "Invalid Password"},
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {"status": True, "message": "Password successfully Verified"},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Customer PIN"])
+class VerifyOldPINViewset(CreateAPIView):
+    """
+    This view verifies the otp sent for password reset.
+    """
+
+    permission_classes = (rest_permissions.AllowAny,)
+    allowed_methods = ("POST", "OPTIONS", "HEAD")
+    serializer_class = serializers.VerifyPINSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        pin = serializer.validated_data["pin"]
+        if not check_password(pin, user.secure_pin):
+            attempt = cache.get(f"pin/attempt/{user.id}")
+            if attempt:
+                attempt += 1
+            else:
+                attempt = 1
+            cache.set(f"pin/attempt/{user.id}", attempt, 60 * 5)
+            message = "Invalid PIN"
+            if attempt > 3:
+                log_access_guardian(
+                    request=request,
+                    log_type=data_tables.AccessGuardian.LogTypes.INVALID_PIN,
+                    phone_number=str(user.phone_number),
+                )
+                message = "Account Deactivated"
+
+            return Response(
+                {
+                    "status": False,
+                    "message": message,
+                    "retries": attempt,
+                },
+                status=status.HTTP_200_OK,
+            )
+        cache.delete(f"pin/attempt/{user.id}")
+        return Response(
+            {"status": True},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Customer PIN"])
+class ForgotPINView(CreateAPIView):
+    """
+    This view sends otp to users who wants to reset thier password.
+    """
+
+    permission_classes = (rest_permissions.IsAuthenticated,)
+    allowed_methods = ("POST", "OPTIONS", "HEAD")
+    serializer_class = serializers.ForgotPINSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        password = serializer.validated_data["password"]
+        security_anser = serializer.validated_data["security_answer"]
+
+        user = request.user
+        if user.check_password(password) and (user.security_answer == security_anser):
+            attempt = cache.delete(f"forgot-pin/{user.id}")
+            return Response(
+                {"status": True, "message": "Reset Your PIN"},
+                status=status.HTTP_200_OK,
+            )
+
+        attempt = cache.get(f"forgot-pin/{user.id}")
+        if attempt:
+            attempt += 1
+        else:
+            attempt = 1
+
+        cache.set(f"forgot-pin/{user.id}", attempt, 60 * 5)
+
+        if attempt > 3:
+            log_access_guardian(
+                request=request,
+                log_type=str(data_tables.AccessGuardian.LogTypes.FORGOT_PIN),
+                phone_number=str(user.phone_number),
+            )
+            raise exceptions.TooManyAttempt()
+        return Response(
+            {"status": False, "message": "Invalid Password or Security Answer"},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Customer PIN"])
+class UpdateUserViewset(ModelViewSet):
+    serializer_class = serializers.SetCusotmerPINSerializer
+    queryset = CustomUser.objects.all()
+    http_method_names = ["patch"]
+    permission_classes = [rest_permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if not self.request.user.is_authenticated:
+            return None
+        return queryset.filter(id=self.request.user.id)
+
+    def perform_update(self, serializer):
+        validated_data = serializer.validated_data
+
+        if validated_data.get("secure_pin"):
+            validated_data["secure_pin"] = make_password(validated_data["secure_pin"])
+
+        serializer.save(**validated_data)
+        return super().perform_update(serializer)

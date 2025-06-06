@@ -12,7 +12,7 @@ app_name = "accounts"
 
 router = DefaultRouter()
 
-# router.register("profile", views.ProfileViewset, basename="profile")
+router.register("pin/set-pin", views.UpdateUserViewset, basename="pin-set-pin")
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
@@ -50,6 +50,29 @@ urlpatterns = [
         views.SignUpExistingCustomerView.as_view(),
         name="signup-existing-customer",
     ),
+    path(
+        "password/change/",
+        views.PasswordChangeView.as_view(),
+        name="password-change",
+    ),
+    path(
+        "password/forgot-password/",
+        views.ResetPasswordOtpView.as_view(),
+        name="password-reset-otp",
+    ),
+    path(
+        "password/verify-reset-otp/",
+        views.VerifyResetPasswordOTPView.as_view(),
+        name="verify-password-reset-otp",
+    ),
+    path("password/reset/", views.ResetPasswordView.as_view(), name="password-reset"),
+    path(
+        "password/check-old-password/",
+        views.VerifyOldPasswrodViewset.as_view(),
+        name="verify-old-password",
+    ),
+    path("pin/forgot-pin/", views.ForgotPINView.as_view(), name="forgot-pin"),
+    path("pin/verify/", views.VerifyOldPINViewset.as_view(), name="verify"),
 ]
 
 urlpatterns += router.urls

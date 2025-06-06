@@ -21,9 +21,13 @@ class BankAccount(models.Model):
     )
     currency = models.CharField(max_length=20)
     account_restricted = models.BooleanField(default=False)
+    default = models.BooleanField(default=False)
     extra_t24_data = models.TextField(default="{}")
     date_created = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return str(self.account_number)
+
+    class Meta:
+        ordering = ("-default",)

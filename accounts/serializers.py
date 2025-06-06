@@ -1,5 +1,7 @@
 from django.http import HttpRequest
 from rest_framework import serializers
+
+from helpers.access_guradian import log_access_guardian
 from .models import (
     CustomUser,
     AccessGuardian,
@@ -17,6 +19,8 @@ import user_agents
 from t24.t24_requests import T24Requests
 from .tasks import count_visit
 from loguru import logger
+from django.db import transaction
+import secrets
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -384,3 +388,232 @@ class SignUpExistingCustomerSerializer(serializers.Serializer):
             "customer_info": customer_info,
         }
         return account_number
+
+
+class ResetPasswordOtpSerializer(serializers.Serializer):
+    """
+    this seriailzer sends an otp for password reset. this endpoints is
+    used when the user has forggoten his/her password and wants to
+    reset.
+    """
+
+    username = serializers.CharField()
+
+    def validate_username(self, value):
+        if value:
+            user_qs = CustomUser.objects.filter(
+                Q(email=value) | Q(username=value) | Q(phone_number=value)
+            )
+            if user_qs.exists():
+                return user_qs.first()
+            raise exceptions.AccountDoesNotExistException()
+        return None
+
+    @transaction.atomic
+    def save(self):
+        request: HttpRequest = self.context.get("request")
+        user_account = self.validated_data.get("username")
+
+        # generate otp code
+        otp_generated = generate_otp(6)
+
+        # set otp for password reset
+        cache.set(f"password-reset/{user_account.id}", otp_generated, 60 * 5)
+
+        attempt = cache.get(f"reset-password/{user_account.id}")
+        if attempt:
+            attempt += 1
+        else:
+            attempt = 1
+        cache.set(f"reset-password/{user_account.id}", attempt, 60 * 5)
+
+        if attempt > 3:
+            log_access_guardian(
+                request=request,
+                log_type=str(AccessGuardian.LogTypes.PASSWORD_RESET),
+                phone_number=str(user_account.phone_number),
+            )
+            raise exceptions.TooManyAttempt()
+        try:
+            notif_object = None
+        except Exception:
+            notif_object = None
+
+        message = (
+            str(notif_object.message).format(
+                customer_name=user_account.first_name, otp_generated=otp_generated
+            )
+            if notif_object
+            else (
+                f"Hi {user_account.first_name}, Your account password Reset OTP."
+                "\nDo not share this with anyone."
+            )
+        )
+        payload = {
+            "emailType": "password_reset_otp",
+            "body": message,
+            "otp": otp_generated,
+            "subject": "Account Password Reset OTP",
+        }
+        generic_send_mail.delay(
+            recipient=str(user_account.email),
+            title="Account Password Reset OTP",
+            payload=payload,
+        )
+
+        return user_account
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    """
+    this is the serializer for reseting password by providing otp sent
+    for password reset and proviving your new password.
+    """
+
+    username = serializers.CharField(max_length=100)
+    otp = serializers.CharField(max_length=20)
+    new_password = serializers.CharField()
+
+    def validate_username(self, value):
+        if value:
+            user_qs = CustomUser.objects.filter(
+                Q(email=value) | Q(username=value) | Q(phone_number=value)
+            )
+            if user_qs.exists():
+                return user_qs.first()
+            raise exceptions.AccountDoesNotExistException()
+        return None
+
+    def validate(self, attrs):
+        username = attrs.get("username", "")
+        otp = attrs.get("otp", "")
+
+        if len(otp) != 6:
+            raise exceptions.InvalidOTPException(detail="OTP length Invalid!")
+        elif not username:
+            raise exceptions.EmailOrUsernameRequiredException()
+
+        user_account = username
+        # check if token has expiered or not
+        cached_otp = cache.get(f"password-reset/{user_account.id}/otp/{otp}")
+
+        if not cached_otp:
+            raise exceptions.InvalidOTPException()
+
+        return attrs
+
+    @transaction.atomic
+    def save(self):
+        username = self.validated_data.get("username")
+        password = self.validated_data.get("new_password")
+        user_account: CustomUser = username
+
+        # change password for user
+        user_account.set_password(password)
+        user_account.save()
+        return user_account
+
+
+class VerifyResetPasswordOtpSerializer(serializers.Serializer):
+    """
+    this serializer checks and validate the otp sent for password reset
+    """
+
+    otp = serializers.CharField(max_length=6)
+    username = serializers.CharField(max_length=100)
+
+    def validate_username(self, value):
+        if value:
+            user_qs = CustomUser.objects.filter(
+                Q(email=value) | Q(username=value) | Q(phone_number=value)
+            )
+            if user_qs.exists():
+                return user_qs.first()
+            raise exceptions.AccountDoesNotExistException()
+        return None
+
+    def validate(self, attrs):
+        username = attrs.get("username", "")
+        otp = attrs.get("otp", "")
+
+        if len(otp) != 6:
+            raise exceptions.InvalidOTPException(detail="OTP length Invalid!")
+        elif not username:
+            raise exceptions.EmailOrUsernameRequiredException()
+
+        user_account: CustomUser = username
+        # check if token has expiered or not
+        cached_otp = cache.get(f"password-reset/{user_account.id}")
+
+        if cached_otp != otp:
+            raise exceptions.InvalidOTPException()
+
+        # otp verified set cahced data
+        cache.set(f"password-reset/{user_account.id}/otp/{cached_otp}", True, 60 * 5)
+
+        return attrs
+
+    @transaction.atomic
+    def save(self):
+        username = self.validated_data.get("username")
+        user: CustomUser = username
+        return user
+
+
+class VerifyPINSerializer(serializers.Serializer):
+    pin = serializers.CharField(max_length=100, required=True)
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    phone_number = PhoneNumberField(allow_blank=False)
+    # email = serializers.EmailField(required=False)
+    otp = serializers.CharField(max_length=6, min_length=6, required=True)
+    registration_token = serializers.SerializerMethodField(read_only=True)
+    token: str = ""
+
+    def get_registration_token(self, *args, **kwargs):
+        return self.token
+
+    def verify_otp(self, request) -> str:
+        """Send email Generate OTP and key and saves them in user account,
+        Sends email with an otp to user for Account Activation"""
+        # email = self.validated_data["email"]
+        phone_number = self.validated_data["phone_number"]
+        otp = self.validated_data["otp"]
+
+        print("== verify data: ", phone_number, otp)
+        # get token details from cache for a maximum of 24 hours
+        cache_otp_value = cache.get(f"otp/phone_number/{phone_number}")
+        if cache_otp_value == otp:
+            while True:
+                token = secrets.token_urlsafe(16)
+                if cache.add(
+                    f"registration/token/{token}",
+                    {"phone_number": str(phone_number)},
+                    60 * 60 * 24,
+                ):
+                    self.token = token
+                    break
+
+        else:
+            raise exceptions.InvalidOTPException()
+        return self.token
+
+
+class VerifyOldPasswordSerializer(serializers.Serializer):
+    """
+    this serializer checks and validate the old password
+    """
+
+    password = serializers.CharField(max_length=100)
+
+
+class ForgotPINSerializer(serializers.Serializer):
+    password = serializers.CharField(max_length=100)
+    security_answer = serializers.CharField(max_length=100)
+
+
+class SetCusotmerPINSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["secure_pin"]

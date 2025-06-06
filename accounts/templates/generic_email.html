@@ -242,7 +242,7 @@
                 {{ body }}
             </div>
 
-             {% if emailType == 'account_verification_otp' %}
+             {% if emailType == 'account_verification_otp' or emailType == 'password_reset_otp' %}
             <!-- Customizable highlight section -->
 <div class="highlight-box" style="text-align: center; background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%); border-left: 4px solid #5bc0de; padding: 30px 20px; margin: 30px 0; border-radius: 12px; box-shadow: 0 4px 8px rgba(91, 192, 222, 0.15);">
                 <div class="info-title" style="color: #3b4db8; font-size: 18px; font-weight: 600; margin-bottom: 15px;">Your OTP for account verification</div>

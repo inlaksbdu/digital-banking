@@ -113,3 +113,30 @@ class BankAccountViewset(ModelViewSet):
             data=data,
             status=status.HTTP_200_OK,
         )
+
+    @action(
+        methods=["get"],
+        detail=True,
+        url_path="set-as-default",
+        url_name="set-as-default",
+        permission_classes=[rest_permissions.IsAuthenticated],
+    )
+    def set_as_default(self, request: HttpRequest, pk):
+        # SET OTHER BANK ACCOUNTS DEFAULT AS FALSE
+        user = request.user
+        models.BankAccount.objects.filter(user=user).update(default=False)
+
+        # SET THIS ACCOUNT AS DEFAULT
+        obj = self.get_object()
+        obj.default = True
+        obj.save()
+
+        data = {
+            "status": True,
+            "message": "Account set as default",
+        }
+
+        return Response(
+            data=data,
+            status=status.HTTP_200_OK,
+        )

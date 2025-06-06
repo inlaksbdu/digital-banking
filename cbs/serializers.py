@@ -12,6 +12,7 @@ class BankAccountSerializer(serializers.ModelSerializer):
             "account_name",
             "account_category",
             "currency",
+            "default",
             "account_restricted",
         )
 
