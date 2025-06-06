@@ -307,9 +307,9 @@ REST_AUTH = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "GTI Digital Bank",
+    "TITLE": "Digital Bankin API's",
     "DESCRIPTION": (
-        "Api Documentation for GTI Digital BankGTI. @Copyright INLAKS."
+        "Api Documentation fo Digital Banking API. @Copyright INLAKS."
         " Reach out to me on pacheampong@inlaks.com"
     ),
     "VERSION": "1.0.0",
