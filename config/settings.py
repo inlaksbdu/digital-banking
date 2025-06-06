@@ -132,8 +132,8 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("POSTGRES_DB", "gtidigibankdb"),
-            "USER": os.getenv("POSTGRES_USER", "gtiadmin"),
+            "NAME": os.getenv("POSTGRES_DB", "postgres"),
+            "USER": os.getenv("POSTGRES_USER", "postgres"),
             "PASSWORD": os.getenv("POSTGRES_PASSWORD", "localhost"),
             "HOST": os.getenv("POSTGRES_HOST", "db"),  # set in docker-compose.yml
             "PORT": int(os.getenv("POSTGRES_PORT", 5432)),  # default postgres port
