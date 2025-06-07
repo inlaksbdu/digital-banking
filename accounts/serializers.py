@@ -309,10 +309,10 @@ class SignUpExistingCustomerEmailAccountValidationSerializer(serializers.Seriali
         customer_email = customer_info.get("customerEmail")
 
         # UNCOMMENT IF YOU WANT BY PASS ACCOUNT EMAIL CHECK
-        if str(customer_email).lower() != str(self.initial_data.get("email")).lower():
-            raise exceptions.GeneralException(
-                detail="Sorry, the email entered does not match the account number."
-            )
+        # if str(customer_email).lower() != str(self.initial_data.get("email")).lower():
+        #     raise exceptions.GeneralException(
+        #         detail="Sorry, the email entered does not match the account number."
+        #     )
         account_number = {
             "account_number": account_number,
             "phone_number": customer_phone_number,
@@ -378,10 +378,10 @@ class SignUpExistingCustomerSerializer(serializers.Serializer):
 
         # get customer email and compare with entered email
         customer_email = customer_info.get("customerEmail")
-        if str(customer_email).lower() != str(self.initial_data.get("email")).lower():
-            raise exceptions.GeneralException(
-                detail="Sorry, the email entered does not match the account number."
-            )
+        # if str(customer_email).lower() != str(self.initial_data.get("email")).lower():
+        #     raise exceptions.GeneralException(
+        #         detail="Sorry, the email entered does not match the account number."
+        #     )
         account_number = {
             "account_number": account_number,
             "phone_number": customer_phone_number,
