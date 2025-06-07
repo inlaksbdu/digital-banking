@@ -26,7 +26,6 @@ class TransferSerializer(serializers.ModelSerializer):
     source_account_name = serializers.SerializerMethodField(read_only=True)
     # purpose_of_transcation_name = serializers.SerializerMethodField(read_only=True)
     initiater_info = serializers.SerializerMethodField(read_only=True)
-    approver = serializers.SerializerMethodField(read_only=True)
     can_approve = serializers.SerializerMethodField(read_only=True)
     reference = serializers.SerializerMethodField(read_only=True)
 
@@ -48,11 +47,6 @@ class TransferSerializer(serializers.ModelSerializer):
     def get_initiater_info(self, obj):
         return obj.user.fullname
 
-    def get_approver(self, obj):
-        if obj.approval_by:
-            return obj.approval_by.fullname
-        return ""
-
     def get_can_approve(self, obj):
         request: HttpRequest = self.context.get("request")
         user = request.user
@@ -68,7 +62,6 @@ class TransferSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "initiater_info",
-            "approver",
             "transfer_type",
             "source_account",
             "source_account_name",
