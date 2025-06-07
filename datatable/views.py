@@ -140,3 +140,12 @@ class SwiftCodeViewset(ModelViewSet):
             ).data,
             status=status.HTTP_200_OK,
         )
+
+
+class NetworkProvidersViewset(ModelViewSet):
+    serializer_class = serializers.NetworkProviderSerializer
+    queryset = models.NetworkProvider.objects.all()
+    http_method_names = ["get"]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(active=True)

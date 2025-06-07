@@ -243,3 +243,15 @@ class SwiftCode(models.Model):
 
     def __str__(self) -> str:
         return self.swift_code
+
+
+class NetworkProvider(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    active = models.BooleanField(default=True)
+
+    uuid = models.UUIDField(default=uuid.uuid4, blank=True, null=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_udpated = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return self.name

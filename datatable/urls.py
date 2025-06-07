@@ -42,6 +42,9 @@ router.register(
     "card-service-reason", views.CardReasonViewset, basename="card-service-reason"
 )
 router.register("swift-code", views.SwiftCodeViewset, basename="swift-code")
+router.register(
+    "network-proviers", views.NetworkProvidersViewset, basename="network-proviers"
+)
 
 urlpatterns = []
 

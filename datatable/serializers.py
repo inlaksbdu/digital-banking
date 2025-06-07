@@ -121,3 +121,13 @@ class SwiftCodeSerializer(serializers.ModelSerializer):
 
 class ValidateSwiftCodeSerializer(serializers.Serializer):
     swift_code = serializers.CharField()
+
+
+class NetworkProviderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.NetworkProvider
+        fields = (
+            "id",
+            "name",
+            "active",
+        )
