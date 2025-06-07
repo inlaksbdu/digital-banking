@@ -345,34 +345,43 @@ class TransferViewset(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         instance = self.perform_create(serializer)
 
-        if (
-            instance.transfer_type
-            in [
+        # if (
+        #     instance.transfer_type
+        #     in [
+        #         "Other Bank Transfer",
+        #         "International Transfer",
+        #         "Account to Wallet",
+        #     ]
+        #     or instance.approval_status == models.Transfer.ApprovalStatus.PENDING
+        # ):
+        #     headers = self.get_success_headers(serializer.data)
+        #     instance.save()
+        #     return Response(
+        #         {
+        #             "status": "pending",
+        #             "failed_reason": "",
+        #             "model": serializers.TransferSerializer(
+        #                 instance,
+        #                 context=self.get_serializer_context(),
+        #             ).data,
+        #         },
+        #         status=status.HTTP_201_CREATED,
+        #         headers=headers,
+        #     )
+
+        try:
+            if instance.transfer_type in [
                 "Other Bank Transfer",
                 "International Transfer",
                 "Account to Wallet",
-            ]
-            or instance.approval_status == models.Transfer.ApprovalStatus.PENDING
-        ):
-            headers = self.get_success_headers(serializer.data)
-            instance.save()
-            return Response(
-                {
-                    "status": "pending",
-                    "failed_reason": "",
-                    "model": serializers.TransferSerializer(
-                        instance,
-                        context=self.get_serializer_context(),
-                    ).data,
-                },
-                status=status.HTTP_201_CREATED,
-                headers=headers,
-            )
+            ]:
+                recipient_account = settings.UNITEL_GL_ACCOUNT
+            else:
+                recipient_account = instance.recipient_account
 
-        try:
             payload = {
                 "debitAccountId": str(instance.source_account.account_number),
-                "creditAccountId": str(instance.recipient_account),
+                "creditAccountId": str(recipient_account),
                 "debitAmount": str(instance.amount),
                 # "debitValueDate": "",
                 "debitCurrency": instance.source_account.currency,
@@ -686,3 +695,123 @@ class ChequeRequestViewset(ModelViewSet):
 
     def perform_create(self, serializer):
         return serializer.save(user=self.request.user)
+
+
+@extend_schema(tags=["Loans"])
+class LoanCategoryViewset(ModelViewSet):
+    queryset = models.LoanCategory.objects.all()
+    serializer_class = serializers.LoanCategorySerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get"]
+    # filterset_fields = ["loan_product_group"]
+
+    def get_queryset(self):
+        celery_tasks.get_loan_products.delay()
+        queryset = super().get_queryset()
+
+        # get query params
+        params = self.request.query_params
+        loan_product_group = params.get("loan_product_group", "")
+
+        if loan_product_group == "CORPORATE":
+            return queryset.filter(
+                loan_product_group__in=[
+                    "CORPORATE",
+                    "SME",
+                ]
+            )
+        elif loan_product_group == "RETAIL":
+            return queryset.filter(loan_product_group="RETAIL")
+
+        return queryset
+
+
+@extend_schema(tags=["Loans"])
+class LoanRequestViewset(ModelViewSet):
+    queryset = models.LoanRequest.objects.all()
+    serializer_class = serializers.LoanRequestSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return serializers.LoanRequestCreateSerializer
+        return super().get_serializer_class()
+
+    def perform_create(self, serializer):
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        files = []
+
+        if "files" in data:
+            files = serializer.validated_data.pop("files")
+
+        instnace = serializer.save(user=self.request.user)
+
+        # save file in the database
+        for file in files:
+            models.LaonRequestFile.objects.create(
+                loan_request=instnace,
+                file=file,
+            )
+
+    @action(
+        methods=["get"],
+        detail=False,
+        url_path="applied-loan",
+        url_name="applied-loan",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=None,
+    )
+    def applied_loans(self, request: HttpRequest):
+        # make a request through to t24
+        user = request.user
+        if (
+            not hasattr(user, "customer_profile")
+            and not user.customer_profile.t24_customer_id
+        ):
+            raise exceptions.GeneralException(detail="Sorry, you have no applied loans")
+        body = []
+        customer_number = user.customer_profile.t24_customer_id
+        url = f"/party/getLoanDetails/?customerId={customer_number}"
+        response = T24Requests.get_loans(url=url)
+
+        if response:
+            body = response
+
+        return Response(
+            data=body,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        methods=["get"],
+        detail=False,
+        url_path="current-loans",
+        url_name="current-loans",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=None,
+    )
+    def current_loans(self, request: HttpRequest):
+        # make a request through to t24
+        user = request.user
+        if (
+            not hasattr(user, "customer_profile")
+            and not user.customer_profile.t24_customer_id
+        ):
+            raise exceptions.GeneralException(detail="Sorry, you have no current loans")
+        body = []
+        customer_number = user.customer_profile.t24_customer_id
+        url = f"/party/getFindLoanDetails/?owner={customer_number}"
+        response = T24Requests.get_loans(url=url)
+
+        if response:
+            body = response
+
+        return Response(
+            data=body,
+            status=status.HTTP_200_OK,
+        )

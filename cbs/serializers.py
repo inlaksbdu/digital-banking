@@ -276,3 +276,70 @@ class ChequeRequestSerializer(serializers.ModelSerializer):
             "user",
             "status",
         )
+
+
+class LoanCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.LoanCategory
+        fields = (
+            "id",
+            "product_id",
+            "loan_product_group",
+            "amount",
+            "interest",
+            "description",
+            "term",
+            "processing_fee",
+        )
+
+
+class LoanFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.LaonRequestFile
+        fields = ("id", "file")
+
+
+class LoanRequestSerializer(serializers.ModelSerializer):
+    files = LoanFileSerializer(many=True, read_only=True)
+    loan_category = LoanCategorySerializer(many=False, read_only=True)
+
+    class Meta:
+        model = models.LoanRequest
+        fields = (
+            "id",
+            "user",
+            "application_id",
+            "source_account",
+            "loan_category",
+            "amount",
+            "duration",
+            "comments",
+            "status",
+            "files",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "application_id",
+        )
+
+
+class LoanRequestCreateSerializer(serializers.ModelSerializer):
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        allow_empty=True,
+        required=False,
+    )
+
+    def to_representation(self, instance):
+        return LoanRequestSerializer(instance).data
+
+    class Meta:
+        model = models.LoanRequest
+        fields = (
+            "source_account",
+            "loan_category",
+            "amount",
+            "duration",
+            "files",
+        )

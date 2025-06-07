@@ -6,6 +6,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from datatable import models as data_tables
 
+# from phonenumber_field.modelfields import PhoneNumberField
+
 # Create your models here.
 
 
@@ -596,3 +598,170 @@ class ChequeRequest(models.Model):
 
     def __str__(self):
         return str(self.user)
+
+
+class LoanCategory(models.Model):
+    amount = models.CharField(max_length=100, null=True, blank=True)
+    product_id = models.CharField(max_length=100, null=True, blank=True)
+    loan_product_group = models.CharField(max_length=100, null=True, blank=True)
+    interest = models.CharField(max_length=100, null=True, blank=True)
+    description = models.CharField(max_length=100, null=True, blank=True)
+    term = models.CharField(max_length=100, null=True, blank=True)
+    processing_fee = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return str(self.product_id)
+
+
+class LoanRequest(models.Model):
+
+    class ReqeustStatus(models.TextChoices):
+        PENDING = "PENDING"
+        REVIEWING = "REVIEWING"
+        APPROVED = "APPROVED"
+        ACTION_REQUIRED = "ACTION REQUIRED"
+        REJECTED = "REJECTED"
+
+    application_id = models.CharField(null=True, blank=True, max_length=100)
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="loan_requests",
+    )
+    source_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="loan_requests",
+    )
+    loan_category = models.ForeignKey(
+        LoanCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="loan_requests",
+    )
+
+    amount = models.DecimalField(decimal_places=2, max_digits=19)
+    duration = models.CharField(max_length=100, null=True, blank=True)
+
+    comments = models.TextField(null=True, blank=True)
+    # other fields
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+    status = models.CharField(
+        choices=ReqeustStatus.choices,
+        default=ReqeustStatus.PENDING,
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-date_created",)
+
+
+class LaonRequestFile(models.Model):
+    loan_request = models.ForeignKey(
+        LoanRequest, related_name="files", on_delete=models.CASCADE
+    )
+    file = models.FileField(upload_to="loan_request_files/")
+
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-date_created",)
+
+
+# class AppointmentBooking(models.Model):
+#     class ServiceType(models.TextChoices):
+#         CASH_DEPOSIT = "CASH DEPOSIT"
+#         CASH_WITHDRAWAL = "CASH WITHDRAWAL"
+#         CHEQUE_DEPOSIT = "CHEQUE DEPOSIT"
+#         CHEQUE_WITHDRAWAL = "CHEQUE WITHDRAWAL"
+#         ENQUIRY = "ENQUIRY"
+
+#     class BookingType(models.TextChoices):
+#         SELF = "SELF"
+#         THIRD_PARTY = "THIRD PARTY"
+
+#     user = models.ForeignKey(
+#         CustomUser,
+#         on_delete=models.SET_NULL,
+#         null=True,
+#         related_name="appointment_bookings",
+#     )
+#     service_type = models.CharField(
+#         choices=ServiceType.choices, max_length=50, null=True, blank=True
+#     )
+
+#     source_account = models.CharField(max_length=100, null=True, blank=True)
+#     source_account_name = models.CharField(max_length=100, null=True, blank=True)
+#     amount = models.DecimalField(max_digits=19, decimal_places=2, null=True, blank=True)
+#     currency = models.CharField(max_length=100, null=True, blank=True)
+
+
+#     # FOR CHEQUEs
+#     cheque_number = models.CharField(max_length=100, null=True, blank=True)
+#     name_of_cheque_issuer = models.CharField(max_length=100, null=True, blank=True)
+#     issuing_bank = models.ForeignKey(
+#         data_tables.OtherBank,
+#         on_delete=models.SET_NULL,
+#         null=True,
+#         related_name="cheque_bookings",
+#     )
+
+#     # ATTENDEE
+#     booking_type = models.CharField(max_length=20, choices=BookingType.choices)
+#     fullname = models.CharField(max_length=100)
+#     id_number = models.CharField(max_length=100, null=True, blank=True)
+#     phone_number = PhoneNumberField()
+
+
+#     # BOOKING DETAILS
+#     branch = models.ForeignKey(
+#         data_tables.BankBranch,
+#         on_delete=models.SET_NULL,
+#         null=True,
+#         related_name="appointment_bookings",
+#     )
+#     date = models.DateField()
+#     time = models.TimeField()
+#     comments = models.CharField(max_length=100, null=True, blank=True)
+
+
+#     # META DATA
+#     uuid = models.UUIDField(
+#         default=uuid.uuid4,
+#         unique=True,
+#         blank=True,
+#         null=True,
+#     )
+#     booking_code = models.CharField(max_length=100, null=True, blank=True)
+#     date_created = models.DateTimeField(auto_now_add=True)
+#     last_updated = models.DateTimeField(auto_now=True)
+
+#     class Meta:
+#         ordering = ("-date_created",)
+
+#     def __str__(self):
+#         return str(self.user)
+
+
+#     def save(self, *args, **kwargs):
+#         if not self.booking_code:
+#             booking = generate_reference_id().upper()
+#             while AppointmentBooking.objects.filter(booking_code=booking).exists():
+#                 booking = generate_reference_id().upper()
+#             self.booking_code = booking
+#         return super().save(*args, **kwargs)

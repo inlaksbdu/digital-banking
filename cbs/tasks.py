@@ -2,13 +2,16 @@ from accounts.models import CustomUser
 from . import models
 from t24.t24_requests import T24Requests
 from config import celery_app
+from django.conf import settings
+from loguru import logger
+import requests
 
 
 @celery_app.task
 def update_customer_bank_accounts(customer_id):
-    user = CustomUser.objects.get(t24_customer_id=customer_id)
+    user = CustomUser.objects.get(customer_profile__t24_customer_id=customer_id)
 
-    response = T24Requests.get_customer_accounts(user.t24_customer_id)
+    response = T24Requests.get_customer_accounts(user.customer_profile.t24_customer_id)
 
     if response:
         print("== there is response: ", response)
@@ -31,3 +34,46 @@ def update_customer_bank_accounts(customer_id):
                 )
     else:
         print("=== no response in other accounts")
+
+
+@celery_app.task
+def get_loan_products():
+    page_size = 200
+    page_start = 1
+    base_url = settings.T24_BASE_URL + "/party/getGtiLoanInfomation/"
+
+    url = f"{base_url}?page_size={page_size}&page_start={page_start}"
+    headers = {"Content-Type": "application/json", "companyId": "ST0010001"}
+    response = requests.get(url, headers=headers)
+
+    # If the response is not successful, break the loop
+    if response.status_code == 200:
+        # Parse the response JSON
+        data = response.json()
+        body = data.get("body", [])
+        for data in body:
+            try:
+                product_id = data.get("productId", "")
+                # Check if object with this account number exists
+                if not models.LoanCategory.objects.filter(
+                    product_id=product_id
+                ).exists():
+                    category = models.LoanCategory(
+                        product_id=data["productId"],
+                        loan_product_group=data["loanProductGroup"],
+                        amount=data["amount"],
+                        interest=data["interest"],
+                        description=data["description"],
+                        term=data["term"],
+                        processing_fee=data["processingFee"],
+                    )
+                    category.save()
+                model = models.LoanCategory.objects.filter(
+                    product_id=product_id
+                ).first()
+                model.loan_product_group = data["loanProductGroup"]
+                model.save()
+            except Exception as e:
+                logger.error("=== error getting loand products ", str(e))
+    else:
+        logger.info("==== rsponse is not 1000 ====")

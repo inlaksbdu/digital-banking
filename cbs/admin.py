@@ -109,3 +109,40 @@ class StandingOrderAdmin(ModelAdmin):
         "beneficiary_name",
         "benficiary_nick_name",
     ]
+
+
+@admin.register(models.LoanCategory)
+class LoanCategoryAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "product_id",
+        "amount",
+        "interest",
+        "description",
+        "term",
+        "processing_fee",
+        "loan_product_group",
+    )
+    readonly_fields = (
+        "product_id",
+        "amount",
+        "interest",
+        "description",
+        "term",
+        "processing_fee",
+        "loan_product_group",
+    )
+
+
+@admin.register(models.LoanRequest)
+class LoanRequestAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "loan_category",
+        "amount",
+        "duration",
+        "status",
+        "date_created",
+    )
+    list_filter = ["status"]

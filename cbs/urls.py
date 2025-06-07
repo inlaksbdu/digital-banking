@@ -14,7 +14,10 @@ router.register("bank-statement", views.BankStatementViewset, basename="bank-sta
 router.register("beneficiary", views.BeneficiaryViewset, basename="beneficiary")
 router.register("standing-order", views.StandingOrderViewset, basename="standing-order")
 router.register("cheque-request", views.ChequeRequestViewset, basename="cheque-request")
-
+router.register(
+    "loan-categories", views.LoanCategoryViewset, basename="loan-categories"
+)
+router.register("loan-requests", views.LoanRequestViewset, basename="loan-requests")
 urlpatterns = []
 
 urlpatterns += router.urls
