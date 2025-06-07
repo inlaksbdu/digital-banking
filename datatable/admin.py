@@ -96,9 +96,14 @@ class OtherBankAdmin(ImportExportAdmin):
     list_display = [
         "id",
         "name",
+        "country",
+        "currency",
+        "code",
         "date_created",
         "last_udpated",
     ]
+    list_filter = ["country"]
+    search_fields = ["name"]
 
 
 @admin.register(models.FileManager)
@@ -132,3 +137,18 @@ class SwiftCodeAdmin(ImportExportAdmin):
         "bank_address",
         "date_created",
     ]
+
+
+@admin.register(models.NetworkProvider)
+class NetworkProvierAdmin(ImportExportAdmin):
+    list_display = [
+        "id",
+        "name",
+        "country",
+        "currency",
+        "code",
+        "date_created",
+        "last_udpated",
+    ]
+    list_filter = ["country"]
+    search_fields = ["name"]

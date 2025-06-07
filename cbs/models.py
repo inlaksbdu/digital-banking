@@ -131,18 +131,18 @@ class Transfer(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return "{}:{}:{}".format(self.transfer_type, self.user, self.internal_reference)
+        return "{}:{}:{}".format(self.transfer_type, self.user, self.reference)
 
     def save(self, *args, **kwargs):
-        if not self.user.corporate_account:
-            self.approval_status = Transfer.ApprovalStatus.APPROVED
-            self.approval_by = self.user
+        # if not self.user.corporate_account:
+        self.approval_status = Transfer.ApprovalStatus.APPROVED
+        self.approval_by = self.user
 
-        if not self.internal_reference:
+        if not self.reference:
             reference = generate_reference_id()
-            while Transfer.objects.filter(internal_reference=reference).exists():
+            while Transfer.objects.filter(reference=reference).exists():
                 reference = generate_reference_id()
-            self.internal_reference = reference
+            self.reference = reference
         if not self.currency:
             self.currency = self.source_account.currency
 

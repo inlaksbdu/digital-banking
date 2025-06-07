@@ -6,8 +6,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.http import HttpRequest
-
-# from rest_framework import permissions as rest_permissions
+from .tasks import get_other_banks, get_other_networks, resolve_phone_number
+from drf_spectacular.utils import extend_schema
 from helpers import exceptions
 
 
@@ -85,10 +85,69 @@ class TermsAndConditionsViewset(ModelViewSet):
     http_method_names = ["get"]
 
 
+@extend_schema(tags=["Other Banks"])
 class OtherBankViewset(ModelViewSet):
     serializer_class = serializers.OtherBankSerializer
     queryset = models.OtherBank.objects.all()
-    http_method_names = ["get"]
+    http_method_names = ["get", "post"]
+    filterset_fields = ("country",)
+
+    def get_queryset(self):
+        # get other bank celery task here
+        get_other_banks()
+        return self.queryset.filter(active=True)
+
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="validate-account",
+        url_name="validate-account",
+        # permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.ValidateAccountNumberSerializer,
+    )
+    def validate_account_number(self, request: HttpRequest, pk):
+        """
+        this action is used validate a swift number
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        bank = self.get_object()
+        account_number = serializer.validated_data["account_number"]
+
+        data = {}
+
+        try:
+
+            response = resolve_phone_number(
+                phone_number=account_number,
+                network_provider_code=bank.code,
+            )
+
+            if not response:
+                return Response(
+                    data={"status": False, "message": "Invalid code provided"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            data = {
+                "account_number": response["data"]["account_number"],
+                "account_name": response["data"]["account_name"],
+            }
+        except Exception as e:
+            print("==== error", str(e))
+            return Response(
+                data={"status": False, "message": "Invalid code provided"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            data={
+                "status": True,
+                "message": "Account Number is resolved successfully",
+                "data": data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class CardReasonViewset(ModelViewSet):
@@ -142,10 +201,65 @@ class SwiftCodeViewset(ModelViewSet):
         )
 
 
+@extend_schema(tags=["Network Provider"])
 class NetworkProvidersViewset(ModelViewSet):
     serializer_class = serializers.NetworkProviderSerializer
     queryset = models.NetworkProvider.objects.all()
-    http_method_names = ["get"]
+    http_method_names = ["get", "post"]
+    filteset_fields = "country"
 
     def get_queryset(self):
+        get_other_networks()
         return super().get_queryset().filter(active=True)
+
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="validate-number",
+        url_name="validate-number",
+        # permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.ValidatePhoneNumberSeriailzer,
+    )
+    def validate_phone_number(self, request: HttpRequest, pk):
+        """
+        this action is used validate a swift number
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        network_provider = self.get_object()
+        phone_number = serializer.validated_data["phone_number"]
+
+        data = {}
+
+        try:
+
+            response = resolve_phone_number(
+                phone_number=phone_number,
+                network_provider_code=network_provider.code,
+            )
+
+            if not response:
+                return Response(
+                    data={"status": False, "message": "Invalid code provided"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            data = {
+                "account_number": response["data"]["account_number"],
+                "account_name": response["data"]["account_name"],
+            }
+        except Exception as e:
+            print("==== error", str(e))
+            return Response(
+                data={"status": False, "message": "Invalid code provided"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            data={
+                "status": True,
+                "message": "Phone number is resolved successfully",
+                "data": data,
+            },
+            status=status.HTTP_200_OK,
+        )

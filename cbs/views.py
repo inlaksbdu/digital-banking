@@ -278,7 +278,7 @@ class TransferViewset(ModelViewSet):
                         errorcode += f"{error['description']},  "
                 else:
                     errorcode = data
-            print("ERROR: [FUNDS TRANSFER]: ", response.text)
+            logger.info(" [FUNDS TRANSFER]: ", response.text)
             instance.failed_reason = errorcode
             instance.t24_reference = (
                 data["header"]["id"] if "id" in data["header"] else ""
@@ -350,37 +350,4 @@ class TransferViewset(ModelViewSet):
         return self.queryset.filter(
             # bulk_transfer__isnull=True,
             user=self.request.user
-        )
-
-    @action(
-        methods=["post"],
-        detail=False,
-        url_path="wallet/validate-number",
-        url_name="wallet/validate-number",
-        permission_classes=[rest_permissions.IsAuthenticated],
-        serializer_class=serializers.WalletPhoneNumberSerializer,
-    )
-    def wallet_validate_number(self, request: HttpRequest):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        phone_number = serializer.validated_data["phone_number"]
-
-        # validate phone number
-        success, message = SaoWallet.validate_number(phone_number)
-        if not success:
-            error_messages = json.loads(message)["error"]
-            raise exceptions.GeneralException(detail=error_messages["message"])
-
-        body = json.loads(message)["result"]
-
-        return Response(
-            data={
-                "status": success,
-                "message": {
-                    "account_name": body["firstName"] + " " + body["lastName"],
-                    "account_number": body["accounts"]["accountNumber"],
-                    "currency": body["accounts"]["currency"],
-                },
-            },
-            status=status.HTTP_200_OK,
         )

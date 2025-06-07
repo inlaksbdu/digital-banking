@@ -508,3 +508,7 @@ TWILIO_NUMBER = os.getenv("TWILIO_NUMBER", default="default")
 TWILIO_SMS_NUMBER = os.getenv("TWILIO_SMS_NUMBER", default="default")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", default="default")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", default="default")
+
+# PAYSTACK
+PAYSTACK_BASE_URL = os.getenv("PAYSTACK_BASE_URL", "")
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")

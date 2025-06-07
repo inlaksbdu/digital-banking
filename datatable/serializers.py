@@ -99,6 +99,8 @@ class OtherBankSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+            "code",
+            "country",
         )
 
 
@@ -123,11 +125,21 @@ class ValidateSwiftCodeSerializer(serializers.Serializer):
     swift_code = serializers.CharField()
 
 
+class ValidatePhoneNumberSeriailzer(serializers.Serializer):
+    phone_number = serializers.CharField()
+
+
+class ValidateAccountNumberSerializer(serializers.Serializer):
+    account_number = serializers.CharField()
+
+
 class NetworkProviderSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.NetworkProvider
         fields = (
             "id",
             "name",
+            "code",
+            "country",
             "active",
         )

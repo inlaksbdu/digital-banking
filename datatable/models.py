@@ -188,6 +188,10 @@ class TermsAndCondition(models.Model):
 
 class OtherBank(models.Model):
     name = models.CharField(max_length=240)
+    country = models.CharField(max_length=100)
+    currency = models.CharField(max_length=100)
+    code = models.CharField(max_length=100, null=True, blank=True)
+    active = models.BooleanField(default=True)
 
     date_created = models.DateTimeField(auto_now_add=True)
     last_udpated = models.DateTimeField(auto_now=True)
@@ -246,7 +250,11 @@ class SwiftCode(models.Model):
 
 
 class NetworkProvider(models.Model):
-    name = models.CharField(max_length=200, unique=True)
+    name = models.CharField(max_length=240)
+    country = models.CharField(max_length=100)
+    currency = models.CharField(max_length=100)
+    code = models.CharField(max_length=100, null=True, blank=True)
+
     active = models.BooleanField(default=True)
 
     uuid = models.UUIDField(default=uuid.uuid4, blank=True, null=True)
@@ -255,3 +263,6 @@ class NetworkProvider(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    class Meta:
+        ordering = ("name",)
