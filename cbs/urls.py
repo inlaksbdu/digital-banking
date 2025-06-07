@@ -7,6 +7,7 @@ app_name = "cbs"
 router = DefaultRouter()
 
 router.register("bank-accounts", views.BankAccountViewset, basename="bank-accounts")
+# router.register("transfer", views.TransferViewset, basename="transfer")
 
 urlpatterns = []
 

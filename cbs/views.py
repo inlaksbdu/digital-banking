@@ -11,6 +11,10 @@ from t24.t24_requests import T24Requests
 from . import tasks as celery_tasks
 from loguru import logger
 from drf_spectacular.utils import extend_schema
+from rest_framework import filters
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import rest_framework as djangofilters
 
 # Create your views here.
 
@@ -140,3 +144,471 @@ class BankAccountViewset(ModelViewSet):
             data=data,
             status=status.HTTP_200_OK,
         )
+
+
+# class TransferFilter(djangofilters.FilterSet):
+#     start_date = djangofilters.DateFilter(
+#         field_name="date_created", lookup_expr="gte", required=False
+#     )
+#     end_date = djangofilters.DateFilter(
+#         field_name="date_created", lookup_expr="lte", required=False
+#     )
+
+#     class Meta:
+#         model = models.Transfer
+#         fields = (
+#             "source_account",
+#             "transfer_type",
+#             "status",
+#             "approval_status",
+#         )
+
+#     def filter_queryset(self, queryset):
+#         queryset = super().filter_queryset(queryset)
+
+#         # Handle filtering based on the presence of start_date and end_date
+#         start_date = self.data.get("start_date")
+#         end_date = self.data.get("end_date")
+
+#         if start_date and end_date:
+#             queryset = queryset.filter(
+#                 date_created__gte=start_date, date_created__lte=end_date
+#             )
+#         elif start_date:
+#             queryset = queryset.filter(date_created__gte=start_date)
+#         elif end_date:
+#             queryset = queryset.filter(date_created__lte=end_date)
+#         return queryset
+
+
+# class TransferViewset(ModelViewSet):
+#     queryset = models.Transfer.objects.all()
+#     serializer_class = serializers.TransferSerializer
+#     permission_classes = [rest_permissions.IsAuthenticated]
+#     http_method_names = ["get", "post", "patch"]
+#     filterset_fields = ("transfer_type", "status", "approval_status")
+#     filter_backends = (filters.SearchFilter, DjangoFilterBackend)
+#     filterset_class = TransferFilter
+
+#     def perform_create(self, serializer):
+#         channel = self.request.META.get("HTTP_CHANNEL", "Other")
+#         instance = serializer.save(user=self.request.user, channel=channel)
+
+#         # create transaction history
+#         models.TransactionHistory.objects.create(
+#             user=self.request.user,
+#             history_id=instance.id,
+#             history_model=instance,
+#             credit_debit_status=models.TransactionHistory.CreditDebitStatus.DEBIT,
+#             history_type=models.TransactionHistory.TransactionType.TRANSFER,
+#             date_created=timezone.now(),
+#         )
+#         return serializer.save()
+
+#     def create(self, request, *args, **kwargs):
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         instance = self.perform_create(serializer)
+
+#         if (
+#             instance.transfer_type
+#             in [
+#                 "Other Bank Transfer",
+#                 "International Transfer",
+#                 "Account to Wallet",
+#             ]
+#             or instance.approval_status == models.Transfer.ApprovalStatus.PENDING
+#         ):
+#             headers = self.get_success_headers(serializer.data)
+#             instance.save()
+#             return Response(
+#                 {
+#                     "status": "pending",
+#                     "failed_reason": "",
+#                     "model": serializers.TransferSerializer(
+#                         instance,
+#                         context=self.get_serializer_context(),
+#                     ).data,
+#                 },
+#                 status=status.HTTP_201_CREATED,
+#                 headers=headers,
+#             )
+
+#         try:
+#             payload = {
+#                 "debitAccountId": str(instance.source_account.account_number),
+#                 "creditAccountId": str(instance.recipient_account),
+#                 "debitAmount": str(instance.amount),
+#                 # "debitValueDate": "",
+#                 "debitCurrency": instance.source_account.currency,
+#                 "transactionType": "AC",
+#                 "paymentDetails": instance.purpose_of_transaction,
+#                 "channel": "",
+#             }
+
+#             url = f"{base_url}/party/creategtiFundsTransfer"
+#             headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
+#             response = requests.post(
+#                 url, headers=headers, json=json.dumps({"body": payload})
+#             )
+#             data = json.loads(response.text)
+
+#             req_status = data["header"]["status"]
+#             errorcode = ""
+
+#             if response.status_code != 200:
+#                 if "error" in data:
+#                     errorData = data["error"]
+#                     error_detail = errorData["errorDetails"]
+#                     errorcode = ""
+#                     for error in error_detail:
+#                         errorcode += f"{error['message']},  "
+
+#                 elif "override" in data:
+#                     errorData = data["override"]
+#                     error_detail = errorData["overrideDetails"]
+#                     errorcode = ""
+#                     for error in error_detail:
+#                         errorcode += f"{error['description']},  "
+#                 else:
+#                     errorcode = data
+#             print("ERROR: [FUNDS TRANSFER]: ", response.text)
+#             instance.failed_reason = errorcode
+#             instance.t24_reference = (
+#                 data["header"]["id"] if "id" in data["header"] else ""
+#             )
+#             instance.cbs_status = "Requested"
+#             instance.status = req_status.title()
+#             instance.save()
+
+#             # create a credit notificaiton to the recipeient account
+#             if req_status == "success":
+#                 try:
+#                     recipient_account = models.BankAccount.objects.filter(
+#                         account_number=instance.recipient_account
+#                     ).first()
+
+#                     if recipient_account:
+#                         # account_number = recipient_account.first()
+#                         user_account = recipient_account.user
+#                         models.TransactionHistory.objects.create(
+#                             user=user_account,
+#                             history_id=instance.id,
+#                             history_model=instance,
+#                             credit_debit_status=models.TransactionHistory.CreditDebitStatus.CREDIT,
+#                             history_type=models.TransactionHistory.TransactionType.TRANSFER,
+#                             date_created=timezone.now(),
+#                         )
+#                 except Exception:
+#                     pass
+
+#             # Customize your response here
+#             return Response(
+#                 {
+#                     "status": req_status,
+#                     "failed_reason": instance.failed_reason,
+#                     "model": serializer.data,
+#                 },
+#                 status=status.HTTP_201_CREATED,
+#             )
+
+#         except Exception as e:
+#             print("===== T24 REQUEST ERROR: ", str(e))
+
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+#     def perform_update(self, serializer):
+#         orginal_object = self.get_object()
+#         instance = serializer.save()
+
+#         differences = ""
+
+#         # Get the model's fields
+#         for field in orginal_object._meta.fields:
+#             field_name = field.name
+#             value1 = getattr(orginal_object, field_name)
+#             value2 = getattr(instance, field_name)
+
+#             if value1 != value2 and field_name != "last_updated":
+#                 differences += f"\n- changed {field_name.replace('_', ' ').title()} from {value1} to {value2}"
+
+#         models.TransferEditHistory.objects.create(
+#             user=self.request.user,
+#             transfer=instance,
+#             edit_trail=differences.strip(),
+#         )
+
+#         return super().perform_update(serializer)
+
+#     def get_queryset(self):
+#         return self.queryset.filter(
+#             # bulk_transfer__isnull=True,
+#             user__bind_id=self.request.user.bind_id,
+#         )
+
+#     @action(
+#         methods=["post"],
+#         detail=True,
+#         url_path="approve-transaction",
+#         url_name="approve-transaction",
+#         permission_classes=[rest_permissions.IsAuthenticated],
+#         serializer_class=serializers.ComentsOnApprovalsAndRejectionSerializer,
+#     )
+#     def approve_transaction(self, request: HttpRequest, pk):
+#         instance = self.get_object()
+
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+
+#         comments = serializer.validated_data["comments"]
+#         instance.comments = comments
+
+#         if instance.transfer_type == models.Transfer.TransferType.OTHER_BANK_TRANSFER:
+#             instance.approval_status = models.Transfer.ApprovalStatus.APPROVED
+#             instance.approval_by = self.request.user
+#             instance.save()
+#             # send email to user who created the traaction
+#             try:
+#                 notif_object = data_tables.NotificationMessage.objects.get(
+#                     message_type=data_tables.NotificationMessage.MessageType.TRANSFER_APPROVED
+#                 )
+#             except Exception:
+#                 notif_object = None
+
+#             body = (
+#                 str(notif_object.message).format(
+#                     name=instance.user.fullname,
+#                     approver=request.user.fullname,
+#                     comments=comments,
+#                 )
+#                 if notif_object
+#                 else (
+#                     f"Hi {instance.user.fullname}, your transfer has been approved by"
+#                     f" {request.user.fullname} with comments: {instance.comments}."
+#                 )
+#             )
+
+#             generic_send_mail.delay(
+#                 message=body,
+#                 recipient_list=instance.user.email,
+#                 title=notif_object.title if notif_object else "Transfer Approved",
+#             )
+
+#             return Response(
+#                 {
+#                     "status": "pending",
+#                     "failed_reason": "",
+#                     "model": serializers.TransferSerializer(
+#                         instance,
+#                         context=self.get_serializer_context(),
+#                     ).data,
+#                 },
+#                 status=status.HTTP_201_CREATED,
+#             )
+
+#         try:
+#             payload = {
+#                 "debitAccountId": instance.source_account.account_number,
+#                 "creditAccountId": instance.recipient_account,
+#                 "debitAmount": str(instance.amount),
+#                 "debitCurrency": instance.source_account.currency,
+#                 "transactionType": "AC",
+#             }
+#             url = f"{base_url}/party/creategtiFundsTransfer"
+#             headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
+#             response = requests.post(
+#                 url, headers=headers, json=json.dumps({"body": payload})
+#             )
+#             data = json.loads(response.text)
+#             req_status = data["header"]["status"]
+
+#             errorcode = ""
+#             if response.status_code != 200:
+#                 if "error" in data:
+#                     errorData = data["error"]
+#                     error_detail = errorData["errorDetails"]
+#                     errorcode = ""
+#                     for error in error_detail:
+#                         errorcode += f"{error['message']},  "
+
+#                 elif "override" in data:
+#                     errorData = data["override"]
+#                     error_detail = errorData["overrideDetails"]
+#                     errorcode = ""
+#                     for error in error_detail:
+#                         errorcode += f"{error['description']},  "
+#                 else:
+#                     errorcode = data
+
+#             print("ERROR: [APPROVE FUNDS TRANSFER]: ", response.text)
+#             instance.failed_reason = errorcode
+#             instance.t24_reference = (
+#                 data["header"]["id"] if "id" in data["header"] else ""
+#             )
+#             instance.cbs_status = "Requested"
+#             instance.status = req_status.title()
+#             instance.approval_status = models.Transfer.ApprovalStatus.APPROVED
+#             instance.approval_by = self.request.user
+#             instance.save()
+
+#             try:
+#                 recipient_account = models.BankAccount.objects.filter(
+#                     account_number=instance.recipient_account
+#                 ).first()
+
+#                 if recipient_account:
+#                     account_number = recipient_account.first()
+#                     user_account = account_number.user
+#                     models.TransactionHistory.objects.create(
+#                         user=user_account,
+#                         history_id=instance.id,
+#                         history_model=instance,
+#                         credit_debit_status=models.TransactionHistory.CreditDebitStatus.CREDIT,
+#                         history_type=models.TransactionHistory.TransactionType.TRANSFER,
+#                         date_created=timezone.now(),
+#                     )
+#             except Exception:
+#                 pass
+
+#             try:
+#                 notif_object = data_tables.NotificationMessage.objects.get(
+#                     message_type=data_tables.NotificationMessage.MessageType.TRANSFER_APPROVED
+#                 )
+#             except Exception:
+#                 notif_object = None
+
+#             body = (
+#                 str(notif_object.message).format(
+#                     name=instance.user.fullname,
+#                     approver=request.user.fullname,
+#                     comments=comments,
+#                 )
+#                 if notif_object
+#                 else (
+#                     f"Hi {instance.user.fullname}, your transfer has been approved by"
+#                     f" {request.user.fullname} with comments: {instance.comments}."
+#                 )
+#             )
+
+#             print("==== send mail here ====")
+#             generic_send_mail.delay(
+#                 message=body,
+#                 recipient_list=instance.user.email,
+#                 title=notif_object.title if notif_object else "Transfer Approved",
+#             )
+
+#             # Customize your response here
+#             return Response(
+#                 {
+#                     "status": req_status,
+#                     "failed_reason": instance.failed_reason,
+#                     "model": serializers.TransferSerializer(
+#                         instance,
+#                         context=self.get_serializer_context(),
+#                     ).data,
+#                 },
+#                 status=status.HTTP_201_CREATED,
+#             )
+
+#         except Exception as e:
+#             # TODO: Log ERROR HERE
+#             print("===== T24 REQUEST ERROR: ", str(e))
+
+#         # send an email notificaiton to initiator
+#         return Response(
+#             data={
+#                 "status": req_status,
+#                 "failed_reason": instance.failed_reason,
+#                 "model": serializers.TransferSerializer(
+#                     instance,
+#                     context=self.get_serializer_context(),
+#                 ).data,
+#             },
+#             status=status.HTTP_200_OK,
+#         )
+
+#     @action(
+#         methods=["post"],
+#         detail=True,
+#         url_path="reject-transaction",
+#         url_name="reject-transaction",
+#         permission_classes=[rest_permissions.IsAuthenticated],
+#         serializer_class=serializers.ComentsOnApprovalsAndRejectionSerializer,
+#     )
+#     def reject_transaction(self, request: HttpRequest, pk):
+#         instance = self.get_object()
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         comments = serializer.validated_data["comments"]
+#         instance.comments = comments
+
+#         instance.approval_status = models.Transfer.ApprovalStatus.REJECTED
+#         instance.approval_by = self.request.user
+#         instance.save()
+
+#         try:
+#             notif_object = data_tables.NotificationMessage.objects.get(
+#                 message_type=data_tables.NotificationMessage.MessageType.TRANSFER_REJECTED
+#             )
+#         except Exception:
+#             notif_object = None
+
+#         body = (
+#             str(notif_object.message).format(
+#                 name="Customer",
+#                 approver=request.user.fullname,
+#                 comments=comments,
+#             )
+#             if notif_object
+#             else (
+#                 f"Hi {instance.user.fullname}, your transfer has been rejected by"
+#                 f" {request.user.fullname} with comments: {instance.comments}."
+#             )
+#         )
+
+#         generic_send_mail.delay(
+#             message=body,
+#             recipient_list=instance.user.email,
+#             title=notif_object.title if notif_object else "Transfer Rejected",
+#         )
+
+#         return Response(
+#             data=serializers.TransferSerializer(
+#                 instance,
+#                 context=self.get_serializer_context(),
+#             ).data,
+#             status=status.HTTP_200_OK,
+#         )
+
+#     @action(
+#         methods=["post"],
+#         detail=False,
+#         url_path="wallet/validate-number",
+#         url_name="wallet/validate-number",
+#         permission_classes=[rest_permissions.IsAuthenticated],
+#         serializer_class=serializers.WalletPhoneNumberSerializer,
+#     )
+#     def wallet_validate_number(self, request: HttpRequest):
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         phone_number = serializer.validated_data["phone_number"]
+
+#         # validate phone number
+#         success, message = SaoWallet.validate_number(phone_number)
+#         if not success:
+#             error_messages = json.loads(message)["error"]
+#             raise exceptions.GeneralException(detail=error_messages["message"])
+
+#         body = json.loads(message)["result"]
+
+#         return Response(
+#             data={
+#                 "status": success,
+#                 "message": {
+#                     "account_name": body["firstName"] + " " + body["lastName"],
+#                     "account_number": body["accounts"]["accountNumber"],
+#                     "currency": body["accounts"]["currency"],
+#                 },
+#             },
+#             status=status.HTTP_200_OK,
+#         )
