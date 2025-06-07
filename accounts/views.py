@@ -25,6 +25,7 @@ from rest_framework import permissions as rest_permissions
 from django.utils.translation import gettext_lazy as _
 from rest_framework.generics import GenericAPIView
 from rest_framework.viewsets import ModelViewSet
+from helpers.access_guradian import log_access_guardian
 
 
 class UserProfileView(GenericAPIView):
