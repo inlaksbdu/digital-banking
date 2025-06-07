@@ -46,7 +46,7 @@ class UserAdmin(UserAdmin, ModelAdmin):
 
 
 @admin.register(models.CustomerProfile)
-class SecurityQuestionAdmin(ModelAdmin):
+class CustomerProfileAdmin(ModelAdmin):
     list_display = [
         "id",
         "user_account",
@@ -57,13 +57,13 @@ class SecurityQuestionAdmin(ModelAdmin):
         "date_created",
     ]
     search_fields = ["user_account", "t24_customer_id", "mnemonic"]
-    readonly_fields = [
-        "user_account",
-        "t24_customer_id",
-        "mnemonic",
-        "uuid",
-        "extra_data",
-    ]
+    # readonly_fields = [
+    #     "user_account",
+    #     "t24_customer_id",
+    #     "mnemonic",
+    #     "uuid",
+    #     "extra_data",
+    # ]
 
 
 @admin.register(models.UserSecurityQuestion)

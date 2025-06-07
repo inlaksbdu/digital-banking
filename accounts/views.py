@@ -27,6 +27,18 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.viewsets import ModelViewSet
 
 
+class UserProfileView(GenericAPIView):
+    permission_classes = [rest_permissions.IsAuthenticated]
+    serializer_class = serializers.UserProfileSerializer
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        serializer = serializers.UserProfileSerializer(
+            user, context={"request": request}
+        )
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
 @extend_schema(tags=["Signup New Customer"])
 class SignUpNewCustomerValidationView(CreateAPIView):
 

@@ -21,6 +21,11 @@ urlpatterns = [
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     # SignUP URLS
     path(
+        "profile/",
+        views.UserProfileView.as_view(),
+        name="profile",
+    ),
+    path(
         "signup/new-customer/validate/",
         views.SignUpNewCustomerValidationView.as_view(),
         name="signup-new-customer-validate",

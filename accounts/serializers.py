@@ -5,6 +5,7 @@ from helpers.access_guradian import log_access_guardian
 from .models import (
     CustomUser,
     AccessGuardian,
+    CustomerProfile,
 )
 from helpers import exceptions
 from helpers.functions import generate_otp
@@ -23,6 +24,53 @@ from django.db import transaction
 import secrets
 
 
+class CustomerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerProfile
+        fields = (
+            "id",
+            "user_account",
+            "profile_picture",
+            "nationality",
+            "gender",
+            "date_of_birth",
+            "id_number",
+            "id_type",
+            "id_front",
+            "id_back",
+            "place_of_issue",
+            "date_of_issuance",
+            "date_of_expiry",
+            "t24_customer_id",
+        )
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    secure_pin_set = serializers.SerializerMethodField(read_only=True)
+    customer_profile = CustomerProfileSerializer(read_only=True)
+
+    def get_secure_pin_set(self, obj):
+        return True if obj.secure_pin else False
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            "id",
+            "username",
+            "email",
+            "phone_number",
+            "first_name",
+            "last_name",
+            "fullname",
+            "password_set",
+            "secure_pin_set",
+            "deactivated_account",
+            "last_login",
+            "last_login_ip",
+            "customer_profile",
+        )
+
+
 class UserSerializer(serializers.ModelSerializer):
     secure_pin_set = serializers.SerializerMethodField(read_only=True)
 
@@ -39,13 +87,11 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "fullname",
-            "shortname",
             "password_set",
             "secure_pin_set",
             "deactivated_account",
             "last_login",
             "last_login_ip",
-            "t24_customer_id",
         )
 
 
