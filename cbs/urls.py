@@ -10,6 +10,7 @@ router.register("bank-accounts", views.BankAccountViewset, basename="bank-accoun
 router.register("transfer", views.TransferViewset, basename="transfer")
 router.register("payment-billers", views.PaymentBiller, basename="payment-billers")
 router.register("payments", views.PaymentViewset, basename="payments")
+router.register("bank-statement", views.BankStatementViewset, basename="bank-statement")
 
 urlpatterns = []
 

@@ -18,6 +18,10 @@ from django_filters import rest_framework as djangofilters
 import json
 import requests
 from django.conf import settings
+from django.template.loader import render_to_string
+from django.core.mail import EmailMessage
+from .utils import generate_pdf_from_html, encrypt_pdf
+import os
 
 # Create your views here.
 
@@ -145,6 +149,131 @@ class BankAccountViewset(ModelViewSet):
             "status": True,
             "message": "Account set as default",
         }
+
+        return Response(
+            data=data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="mini-statement",
+        url_name="mini-statement",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.AccountStatementSerializer,
+    )
+    def mini_statement(self, request: HttpRequest, pk):
+        bank_account = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
+        queryset = []
+
+        # Format first and last date
+        start_date = str(start_date).replace("-", "")
+        end_date = str(end_date).replace("-", "")
+
+        # Make a request to get withdrawal and deposit objects
+        headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
+
+        params = {
+            "accountNo": bank_account.account_number,
+            "startDate": start_date,
+            "endDate": end_date,
+        }
+
+        account_url = f"{base_url}/party/getAccountStatement"
+        response = requests.get(account_url, headers=headers, params=params)
+        if response.status_code != 200:
+            raise exceptions.GeneralException(
+                detail="Failed to retrieve account statement",
+            )
+        alert_response = json.loads(response.text)
+        body = alert_response.get("body", [])
+        queryset.extend(body)
+        data = {
+            "status": True,
+            "message": "retrieved account statment",
+            "data": queryset,
+        }
+
+        return Response(
+            data=data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="e-statement",
+        url_name="e-statement",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.AccountStatementSerializer,
+    )
+    def e_statement(self, request: HttpRequest, pk):
+        bank_account = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+        recipient_email = data.get("email")
+
+        if not recipient_email:
+            recipient_email = request.user.email
+
+        # Format first and last date
+        start_date = str(start_date).replace("-", "")
+        end_date = str(end_date).replace("-", "")
+
+        # Get the statement from T24
+        statement = T24Requests.get_account_statements(
+            account_number=bank_account.account_number,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Generate context for the email template
+        context = {
+            "bank_name": "Family Bank",
+            "logo": "https://mamicha.com/wp-content/uploads/2019/05/Mamicha-Logos-05.png",
+            "customer_name": str(request.user.fullname).upper(),
+            "account_number": bank_account.account_number,
+            "statements": statement,
+            "generated_date": timezone.now(),
+        }
+        template_path = os.path.join(
+            settings.BASE_DIR, "templates", "bank_statement.html"
+        )
+        html_message = render_to_string(template_path, context)
+        pdf_data = generate_pdf_from_html(html_message)
+        password = str(bank_account.account_number)[-6:]
+        encrypted_pdf_path = encrypt_pdf(pdf_data, password)
+
+        # Create the email subject
+        subject = "Account Statement from {} to {}".format(start_date, end_date)
+        body = f"Your bank statement from {start_date} to {end_date} is attached. The PDF is password protected. \nUse the last 6 characters of your bank account,for example 200000XXXXXX"
+        # Create the email message
+        from_email = settings.DEFAULT_FROM_EMAIL
+        email = EmailMessage(
+            subject,
+            body,
+            from_email,
+            [recipient_email],
+        )
+
+        # Attach the encrypted PDF to the email
+        with open(encrypted_pdf_path, "rb") as f:
+            email.attach("bank_statement.pdf", f.read(), "application/pdf")
+
+        # Send the email
+        email.send()
 
         return Response(
             data=data,
@@ -497,3 +626,18 @@ class PaymentViewset(ModelViewSet):
             print("===== T24 REQUEST ERROR: ", str(e))
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=["Official Bank Statement"])
+class BankStatementViewset(ModelViewSet):
+    queryset = models.BankStatement.objects.all()
+    serializer_class = serializers.BankStatementSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+
+    def perform_create(self, serializer):
+        channel = self.request.META.get("HTTP_CHANNEL", "Other")
+        return serializer.save(user=self.request.user, channel=channel)
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)

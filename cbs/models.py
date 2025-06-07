@@ -4,7 +4,7 @@ from helpers.functions import generate_reference_id
 import uuid
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
-from datatable.models import NetworkProvider, TelcoDataPlan
+from datatable import models as data_tables
 
 # Create your models here.
 
@@ -255,14 +255,14 @@ class Payment(models.Model):
         blank=True,
     )
     data_plan = models.ForeignKey(
-        TelcoDataPlan,
+        data_tables.TelcoDataPlan,
         related_name="payments",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
     )
     network_provider = models.ForeignKey(
-        NetworkProvider,
+        data_tables.NetworkProvider,
         related_name="payments",
         null=True,
         blank=True,
@@ -300,6 +300,66 @@ class Payment(models.Model):
         if not self.currency:
             self.currency = self.source_account.currency
         return super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ("-date_created",)
+
+
+class BankStatement(models.Model):
+    class StatementType(models.TextChoices):
+        # E_STATEMENT = "E-Statement"
+        OFFICIAL_STATEMENT = "Official Statement"
+
+    class Status(models.TextChoices):
+        PENDING = "Pending"
+        SUCCESS = "Success"
+        FAILED = "Failed"
+
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="bank_statements",
+    )
+    statement_type = models.CharField(
+        choices=StatementType.choices,
+        default=StatementType.OFFICIAL_STATEMENT,
+        max_length=240,
+    )
+    source_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.CASCADE,
+        related_name="bank_statements",
+    )
+    start_date = models.DateField()
+    end_date = models.DateField()
+    recipient_email = models.EmailField(null=True, blank=True)
+    purpose = models.CharField(max_length=240)
+    pick_up_branch = models.ForeignKey(
+        data_tables.BankBranch,
+        on_delete=models.CASCADE,
+        related_name="pick_up_branches",
+        null=True,
+        blank=True,
+    )
+
+    status = models.CharField(
+        choices=Status.choices,
+        max_length=50,
+        default=Status.PENDING,
+    )
+    uuid = models.UUIDField(
+        unique=True,
+        blank=True,
+        null=True,
+        default=uuid.uuid4,
+    )
+    comments = models.TextField(null=True, blank=True)
+    channel = models.CharField(max_length=40, null=True, blank=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.user)
 
     class Meta:
         ordering = ("-date_created",)

@@ -160,3 +160,41 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class ValidateBillerNumberSerializer(serializers.Serializer):
     biller_number = serializers.CharField(max_length=100)
+
+
+class AccountStatementSerializer(serializers.Serializer):
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    email = serializers.EmailField(required=False, allow_null=True)
+
+
+class BankStatementSerializer(serializers.ModelSerializer):
+    source_account_name = serializers.SerializerMethodField(read_only=True)
+    source_account_number = serializers.SerializerMethodField(read_only=True)
+
+    def get_source_account_name(self, obj):
+        return obj.source_account.account_name
+
+    def get_source_account_number(self, obj):
+        return obj.source_account.account_number
+
+    class Meta:
+        model = models.BankStatement
+        fields = (
+            "id",
+            "statement_type",
+            "source_account",
+            "source_account_name",
+            "source_account_number",
+            "start_date",
+            "end_date",
+            "recipient_email",
+            "pick_up_branch",
+            "purpose",
+            "status",
+            "comments",
+        )
+        read_only_fields = (
+            "status",
+            "comments",
+        )
