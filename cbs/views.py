@@ -641,3 +641,48 @@ class BankStatementViewset(ModelViewSet):
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
+
+
+@extend_schema(tags=["Beneficiary"])
+class BeneficiaryViewset(ModelViewSet):
+    queryset = models.Beneficiary.objects.all()
+    serializer_class = serializers.BeneficiarySerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+    filterset_fields = ["beneficiary_type"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)
+
+
+@extend_schema(tags=["Standing Order"])
+class StandingOrderViewset(ModelViewSet):
+    queryset = models.StandingOrder.objects.all()
+    serializer_class = serializers.StandingOrderSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+    filterset_fields = ["standing_order_type"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)
+
+
+@extend_schema(tags=["Cheque Requests"])
+class ChequeRequestViewset(ModelViewSet):
+    queryset = models.ChequeRequest.objects.all()
+    serializer_class = serializers.ChequeRequestSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+    filterset_fields = ["cheque_request_type"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)

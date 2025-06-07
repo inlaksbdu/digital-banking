@@ -198,3 +198,81 @@ class BankStatementSerializer(serializers.ModelSerializer):
             "status",
             "comments",
         )
+
+
+class BeneficiarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Beneficiary
+        fields = (
+            "id",
+            "user",
+            "avatar",
+            "source_account",
+            "network_provider",
+            "biller",
+            "beneficiary_type",
+            "beneficiary_number",
+            "beneficiary_name",
+            "benficiary_nick_name",
+            "beneficiary_country",
+            "beneficiary_swift_code",
+            "beneficiary_bank",
+            "beneficiary_bank_address",
+            "beneficiary_iban_number",
+            "beneficiary_email",
+            "beneficiary_residence_address",
+            "date_created",
+        )
+        read_only_fields = (
+            "date_created",
+            "user",
+        )
+
+
+class StandingOrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.StandingOrder
+        fields = (
+            "id",
+            "user",
+            "source_account",
+            "standing_order_type",
+            "other_bank",
+            "network_provider",
+            "recipient_account",
+            "amount",
+            "start_date",
+            "end_date",
+            "purpose_of_transaction",
+            "interval",
+            "status",
+        )
+        read_only_fields = (
+            "date_created",
+            "user",
+            "status",
+        )
+
+
+class ChequeRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ChequeRequest
+        fields = (
+            "id",
+            "user",
+            "cheque_request_type",
+            "source_account",
+            "leaves",
+            "branch",
+            "cheque_numbers",
+            "amount",
+            "reason",
+            "cheque_date",
+            "status",
+            "date_created",
+        )
+        read_only_fields = (
+            "date_created",
+            "user",
+            "status",
+        )

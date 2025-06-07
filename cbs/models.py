@@ -363,3 +363,236 @@ class BankStatement(models.Model):
 
     class Meta:
         ordering = ("-date_created",)
+
+
+class Beneficiary(models.Model):
+
+    class BeneficiaryType(models.TextChoices):
+        AIRTME = "Airtime"
+        DATA = "Data"
+        SAME_BANK = "Same Bank"
+        OTHER_BANK = "Other Bank"
+        ACCOUNT_TO_WALLET = "Account To Wallet"
+        INTERNATIONAL_TRANSFER = "International Transfer"
+        BILL_PAYMNET = "Bill Payment"
+
+    user = models.ForeignKey(
+        CustomUser,
+        related_name="beneficiaries",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
+    source_account = models.ForeignKey(
+        BankAccount,
+        related_name="beneficiaries",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
+    network_provider = models.ForeignKey(
+        data_tables.NetworkProvider,
+        related_name="beneficiaries",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    biller = models.ForeignKey(
+        PaymentBiller,
+        related_name="beneficiaries",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    beneficiary_type = models.CharField(
+        choices=BeneficiaryType.choices,
+        max_length=100,
+    )
+
+    # BENEFICIARY NUMBER
+    avatar = models.FileField(upload_to="beneficiary_avatars/", null=True, blank=True)
+    beneficiary_number = models.CharField(max_length=200)
+    beneficiary_name = models.CharField(max_length=200)
+    benficiary_nick_name = models.CharField(max_length=200)
+
+    # BENEFICARY FOR INTERNATIONAL
+    beneficiary_country = models.CharField(max_length=200, null=True, blank=True)
+    beneficiary_swift_code = models.CharField(max_length=200, null=True, blank=True)
+    beneficiary_bank = models.CharField(max_length=200, null=True, blank=True)
+    beneficiary_bank_address = models.CharField(max_length=200, null=True, blank=True)
+    beneficiary_iban_number = models.CharField(max_length=200, null=True, blank=True)
+    beneficiary_email = models.EmailField(null=True, blank=True)
+    beneficiary_residence_address = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+
+    uuid = models.UUIDField(default=uuid.uuid4, blank=True, null=True, unique=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.user)
+
+    class Meta:
+        ordering = ("-date_created",)
+
+
+class StandingOrder(models.Model):
+
+    class StandingOrderType(models.TextChoices):
+        OWN_ACCOUNT_TRANSFER = "Airtime"
+        SAME_BANK = "Same Bank"
+        OTHER_BANK = "Other Bank"
+        ACCOUNT_TO_WALLET = "Account To Wallet"
+        BILL_PAYMNET = "Bill Payment"
+
+    class Interval(models.TextChoices):
+        DAILY = "Daily"
+        WEEKLY = "Weekly"
+        MONTHLY = "Monthly"
+        YEARLY = "Yearly"
+
+    class Stuatus(models.TextChoices):
+        ACTIVE = "Active"
+        INACTIVE = "Inactive"
+
+    class CBSStatus(models.TextChoices):
+        PENDING = "Pending"
+        REQUESTED = "Requested"
+        FAILED = "Failed"
+
+    user = models.ForeignKey(
+        CustomUser,
+        related_name="standing_order",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
+    source_account = models.ForeignKey(
+        BankAccount,
+        related_name="standing_order",
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
+    standing_order_type = models.CharField(
+        choices=StandingOrderType.choices,
+        max_length=100,
+    )
+
+    # RECIPIENT
+    other_bank = models.ForeignKey(
+        data_tables.OtherBank,
+        related_name="standing_orders",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    network_provider = models.ForeignKey(
+        data_tables.NetworkProvider,
+        related_name="standing_orders",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    recipient_account = models.CharField(max_length=200)
+    amount = models.DecimalField(decimal_places=2, max_digits=19)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    purpose_of_transaction = models.CharField(max_length=200)
+
+    interval = models.CharField(max_length=100, choices=Interval.choices)
+
+    cbs_status = models.CharField(
+        max_length=100, choices=CBSStatus.choices, default=CBSStatus.PENDING
+    )
+    status = models.CharField(
+        max_length=100, choices=Stuatus.choices, default=Stuatus.ACTIVE
+    )
+    uuid = models.UUIDField(default=uuid.uuid4, blank=True, null=True, unique=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.user)
+
+    class Meta:
+        ordering = ("-date_created",)
+
+
+class ChequeRequest(models.Model):
+
+    class ChequeLeaves(models.TextChoices):
+        TEN = "10 LEAVES"
+        TWENTY_FIVE = "25 LEAVES"
+        FIFTY = "50 LEAVES"
+        SEVENTY_FIVE = "75 LEAVES"
+        HUNDRED = "100 LEAVES"
+        ONE_FIFTY = "150 LEAVES"
+
+    class ChequeRequestType(models.TextChoices):
+        CHEQUE_REQUEST = "CHEQUE REQUEST"
+        BLOCK_CHEQUE_REQUEST = "BLOCK CHEQUE"
+        CHEQUE_CONFIRMATION = "CONFIRM CHEQUE"
+
+    cheque_request_type = models.CharField(
+        choices=ChequeRequestType.choices, max_length=50
+    )
+
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="user_cheque_requests",
+    )
+
+    source_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="cheque_requests",
+    )
+
+    # CHEQUE REQUESTS
+    leaves = models.CharField(
+        choices=ChequeLeaves.choices,
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+    branch = models.ForeignKey(
+        data_tables.BankBranch,
+        related_name="cheque_services_requests",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    # BLOCK/CONFIRM CHEQUE
+    cheque_numbers = models.TextField(null=True, blank=True)
+    amount = models.DecimalField(
+        max_digits=19,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    cheque_date = models.DateField(null=True, blank=True)
+    reason = models.CharField(max_length=200, null=True, blank=True)
+
+    # META DATA
+    comments = models.TextField(null=True, blank=True)
+    uuid = models.UUIDField(default=uuid.uuid4, unique=True, blank=True, null=True)
+    status = models.CharField(
+        choices=GenericStatus.choices,
+        default=GenericStatus.PENDING,
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-date_created",)
+
+    def __str__(self):
+        return str(self.user)

@@ -62,3 +62,50 @@ class PaymentBillerAdmin(ModelAdmin):
         "name",
         "biller_account",
     ]
+
+
+@admin.register(models.Beneficiary)
+class BeneficiarAdmin(ModelAdmin):
+    list_display = [
+        "id",
+        "beneficiary_type",
+        "user",
+        "source_account",
+        "beneficiary_number",
+        "beneficiary_name",
+        "benficiary_nick_name",
+    ]
+    list_filter = ["beneficiary_type", "biller", "network_provider"]
+    search_fields = [
+        "beneficiary_type",
+        "user",
+        "source_account",
+        "beneficiary_number",
+        "beneficiary_name",
+        "benficiary_nick_name",
+    ]
+
+
+@admin.register(models.StandingOrder)
+class StandingOrderAdmin(ModelAdmin):
+    list_display = [
+        "id",
+        "user",
+        "source_account",
+        "standing_order_type",
+        "amount",
+        "start_date",
+        "end_date",
+        "status",
+        "cbs_status",
+    ]
+
+    list_filter = ["standing_order_type", "network_provider"]
+    search_fields = [
+        "standing_order_type",
+        "user",
+        "source_account",
+        "beneficiary_number",
+        "beneficiary_name",
+        "benficiary_nick_name",
+    ]
