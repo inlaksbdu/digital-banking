@@ -34,7 +34,7 @@ def generic_send_mail(recipient, title, payload: Dict[str, str] = {}):
 # @celery_app.task
 @shared_task
 def generic_send_sms(to, body):
-    return ""
+    # return ""
     account_sid = settings.TWILIO_ACCOUNT_SID
     auth_token = settings.TWILIO_AUTH_TOKEN
     number = settings.TWILIO_SMS_NUMBER
