@@ -266,3 +266,18 @@ class NetworkProvider(models.Model):
 
     class Meta:
         ordering = ("name",)
+
+
+class TelcoDataPlan(models.Model):
+    network = models.ForeignKey(
+        NetworkProvider, on_delete=models.CASCADE, related_name="data_plans"
+    )
+    name = models.CharField(max_length=240)
+    data = models.CharField(max_length=240)
+    price = models.DecimalField(max_digits=19, decimal_places=2)
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_udpated = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return self.name

@@ -152,3 +152,14 @@ class NetworkProvierAdmin(ImportExportAdmin):
     ]
     list_filter = ["country"]
     search_fields = ["name"]
+
+
+@admin.register(models.TelcoDataPlan)
+class TelcoDataPlanAdmin(ImportExportAdmin):
+    list_display = (
+        "id",
+        "network",
+        "name",
+        "data",
+        "price",
+    )

@@ -4,6 +4,7 @@ from helpers.functions import generate_reference_id
 import uuid
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
+from datatable.models import NetworkProvider, TelcoDataPlan
 
 # Create your models here.
 
@@ -200,6 +201,105 @@ class TransactionHistory(models.Model):
 
     def __str__(self):
         return str(self.user)
+
+    class Meta:
+        ordering = ("-date_created",)
+
+
+class PaymentBiller(models.Model):
+    name = models.CharField(max_length=240)
+    biller_account = models.CharField(max_length=100)
+    biller_logo = models.ImageField(upload_to="payment-billers/", null=True, blank=True)
+
+    uuid = models.UUIDField(unique=True, blank=True, null=True, default=uuid.uuid4)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.name)
+
+
+class Payment(models.Model):
+    class PaymentType(models.TextChoices):
+        AIRTIME = "Airtime"
+        DATA = "Data"
+        BILL_PAYMENT = "Bill Payment"
+
+    class PaymentStatus(models.Choices):
+        PENDING = "Pending"
+        SUCCESS = "Success"
+        FAILED = "Failed"
+
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="payments"
+    )
+    source_account = models.ForeignKey(
+        BankAccount, on_delete=models.CASCADE, related_name="payments"
+    )
+
+    beneficiary = models.CharField(max_length=240, null=True, blank=True)
+    beneficiary_name = models.CharField(max_length=100, null=True, blank=True)
+
+    amount = models.DecimalField(max_digits=19, decimal_places=2)
+    currency = models.CharField(max_length=10, null=True, blank=True)
+
+    payment_type = models.CharField(
+        choices=PaymentType.choices,
+        max_length=100,
+    )
+    biller = models.ForeignKey(
+        PaymentBiller,
+        related_name="payments",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    data_plan = models.ForeignKey(
+        TelcoDataPlan,
+        related_name="payments",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    network_provider = models.ForeignKey(
+        NetworkProvider,
+        related_name="payments",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+
+    purpose_of_transaction = models.CharField(max_length=200)
+
+    # META DATA
+    status = models.CharField(
+        choices=PaymentStatus.choices, max_length=50, default=CBSStatus.PENDING
+    )
+    reference = models.CharField(
+        max_length=240,
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    channel = models.CharField(max_length=40, null=True, blank=True)
+    t24_reference = models.CharField(max_length=240, null=True, blank=True)
+    uuid = models.UUIDField(unique=True, blank=True, null=True, default=uuid.uuid4)
+    failed_reason = models.TextField(null=True, blank=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "{}:{}:{}".format(self.payment_type, self.user, self.reference)
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            reference = generate_reference_id()
+            while Payment.objects.filter(reference=reference).exists():
+                reference = generate_reference_id()
+            self.reference = reference
+        if not self.currency:
+            self.currency = self.source_account.currency
+        return super().save(*args, **kwargs)
 
     class Meta:
         ordering = ("-date_created",)

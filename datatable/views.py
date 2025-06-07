@@ -85,6 +85,13 @@ class TermsAndConditionsViewset(ModelViewSet):
     http_method_names = ["get"]
 
 
+class TelcoDataPlanViewset(ModelViewSet):
+    serializer_class = serializers.TelcoDataPlanSerializer
+    queryset = models.TelcoDataPlan.objects.all()
+    http_method_names = ["get"]
+    filterset_fields = ("network",)
+
+
 @extend_schema(tags=["Other Banks"])
 class OtherBankViewset(ModelViewSet):
     serializer_class = serializers.OtherBankSerializer

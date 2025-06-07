@@ -143,3 +143,15 @@ class NetworkProviderSerializer(serializers.ModelSerializer):
             "country",
             "active",
         )
+
+
+class TelcoDataPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.TelcoDataPlan
+        fields = (
+            "id",
+            "network",
+            "name",
+            "data",
+            "price",
+        )

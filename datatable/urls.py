@@ -45,6 +45,9 @@ router.register("swift-code", views.SwiftCodeViewset, basename="swift-code")
 router.register(
     "network-proviers", views.NetworkProvidersViewset, basename="network-proviers"
 )
+router.register(
+    "telco-data-plan", views.TelcoDataPlanViewset, basename="telco-data-plan"
+)
 
 urlpatterns = []
 

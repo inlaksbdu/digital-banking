@@ -283,7 +283,6 @@ class TransferViewset(ModelViewSet):
             instance.t24_reference = (
                 data["header"]["id"] if "id" in data["header"] else ""
             )
-            instance.cbs_status = "Requested"
             instance.status = req_status.title()
             instance.save()
 
@@ -351,3 +350,150 @@ class TransferViewset(ModelViewSet):
             # bulk_transfer__isnull=True,
             user=self.request.user
         )
+
+
+@extend_schema(tags=["Payments"])
+class PaymentBiller(ModelViewSet):
+    queryset = models.PaymentBiller.objects.all()
+    serializer_class = serializers.PaymentBillerSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="validate-number",
+        url_name="validate-number",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.ValidateBillerNumberSerializer,
+    )
+    def validate_number(self, request: HttpRequest, pk):
+        # SET OTHER BANK ACCOUNTS DEFAULT AS FALSE
+        # biller = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # validated_data = serializer.validated_data
+
+        # PERFORM CHECK HERE BASED ON THE BILLER
+        import requests
+
+        base_url = "https://randomuser.me/api/"
+        response = requests.get(base_url)
+        if response.status_code != 200:
+            return Response(
+                data={"status": False, "message": "Something went wrong"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        json_response = json.loads(response.text)
+        customer_name = "{} {}".format(
+            json_response["results"][0]["name"]["first"],
+            json_response["results"][0]["name"]["last"],
+        )
+
+        data = {
+            "status": True,
+            "message": "Biller Number succesfully validated",
+            "customer_name": customer_name,
+        }
+
+        return Response(
+            data=data,
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Payments"])
+class PaymentViewset(ModelViewSet):
+    queryset = models.Payment.objects.all()
+    serializer_class = serializers.PaymentSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        channel = self.request.META.get("HTTP_CHANNEL", "Other")
+        instance = serializer.save(user=self.request.user, channel=channel)
+
+        # create transaction history
+        models.TransactionHistory.objects.create(
+            user=self.request.user,
+            history_id=instance.id,
+            history_model=instance,
+            credit_debit_status=models.TransactionHistory.CreditDebitStatus.DEBIT,
+            history_type=models.TransactionHistory.TransactionType.PAYMENT,
+            date_created=timezone.now(),
+        )
+        return serializer.save()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_create(serializer)
+
+        try:
+            if instance.payment_type in ["Airtime", "Data"]:
+                gl_account = settings.UNITEL_GL_ACCOUNT
+            else:
+                payment_biller = instance.biller
+                gl_account = payment_biller.biller_account
+            payload = {
+                "debitAccountId": str(instance.source_account.account_number),
+                "creditAccountId": str(gl_account),
+                "debitAmount": str(instance.amount),
+                "debitCurrency": instance.source_account.currency,
+                "transactionType": "AC",
+                "paymentDetails": instance.purpose_of_transaction,
+                "channel": "",
+            }
+
+            url = f"{base_url}/party/creategtiFundsTransfer"
+            headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
+            response = requests.post(
+                url, headers=headers, json=json.dumps({"body": payload})
+            )
+            data = json.loads(response.text)
+
+            req_status = data["header"]["status"]
+            errorcode = ""
+
+            if response.status_code != 200:
+                if "error" in data:
+                    errorData = data["error"]
+                    error_detail = errorData["errorDetails"]
+                    errorcode = ""
+                    for error in error_detail:
+                        errorcode += f"{error['message']},  "
+
+                elif "override" in data:
+                    errorData = data["override"]
+                    error_detail = errorData["overrideDetails"]
+                    errorcode = ""
+                    for error in error_detail:
+                        errorcode += f"{error['description']},  "
+                else:
+                    errorcode = data
+            logger.info(" [FUNDS TRANSFER]: ", response.text)
+            instance.failed_reason = errorcode
+            instance.t24_reference = (
+                data["header"]["id"] if "id" in data["header"] else ""
+            )
+            instance.status = req_status.title()
+            instance.save()
+            # Customize your response here
+            return Response(
+                {
+                    "status": req_status,
+                    "failed_reason": instance.failed_reason,
+                    "model": serializer.data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            instance.failed_reason = str(e)
+            instance.save()
+            print("===== T24 REQUEST ERROR: ", str(e))
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

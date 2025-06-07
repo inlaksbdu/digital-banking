@@ -107,9 +107,63 @@ class TransferSerializer(serializers.ModelSerializer):
         )
 
 
-class ComentsOnApprovalsAndRejectionSerializer(serializers.Serializer):
-    comments = serializers.CharField()
+class PaymentBillerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PaymentBiller
+        fields = (
+            "id",
+            "name",
+            "biller_account",
+            "biller_logo",
+        )
 
 
-class WalletPhoneNumberSerializer(serializers.Serializer):
-    phone_number = serializers.CharField()
+class PaymentSerializer(serializers.ModelSerializer):
+
+    source_account_name = serializers.SerializerMethodField(read_only=True)
+    initiater_info = serializers.SerializerMethodField(read_only=True)
+
+    def get_initiater_info(self, obj):
+        return obj.user.fullname
+
+    def get_source_account_name(self, obj):
+        return {
+            "account_name": obj.source_account.account_name,
+            "account_number": obj.source_account.account_number,
+            "account_category": obj.source_account.account_category,
+        }
+
+    class Meta:
+        model = models.Payment
+        fields = (
+            "id",
+            "initiater_info",
+            "payment_type",
+            "source_account",
+            "source_account_name",
+            "amount",
+            "currency",
+            "network_provider",
+            "beneficiary",
+            "beneficiary_name",
+            "purpose_of_transaction",
+            "biller",
+            "data_plan",
+            "status",
+            "reference",
+            "t24_reference",
+            "failed_reason",
+            "date_created",
+            "last_updated",
+        )
+        read_only_fields = (
+            "date_created",
+            "last_updated",
+            "status",
+            "currency",
+            "failed_reason",
+        )
+
+
+class ValidateBillerNumberSerializer(serializers.Serializer):
+    biller_number = serializers.CharField(max_length=100)
