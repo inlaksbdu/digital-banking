@@ -8,6 +8,7 @@ from django.dispatch import receiver
 from django.conf import settings
 import boto3
 from botocore.exceptions import ClientError
+from loguru import logger
 from .choices import StageChoices, DocumentTypeChoices, DecisionChoices
 
 
@@ -299,7 +300,7 @@ def delete_id_card_files_from_s3(sender, instance, **kwargs):
                     Bucket=bucket_name, Key=instance.front_image.name
                 )
             except ClientError as e:
-                print(f"Error deleting front image from S3: {e}")
+                logger.error(f"Error deleting front image from S3: {e}")
 
         if instance.back_image:
             try:
@@ -307,7 +308,7 @@ def delete_id_card_files_from_s3(sender, instance, **kwargs):
                     Bucket=bucket_name, Key=instance.back_image.name
                 )
             except ClientError as e:
-                print(f"Error deleting back image from S3: {e}")
+                logger.error(f"Error deleting back image from S3: {e}")
 
         if instance.self_image:
             try:
@@ -315,7 +316,7 @@ def delete_id_card_files_from_s3(sender, instance, **kwargs):
                     Bucket=bucket_name, Key=instance.self_image.name
                 )
             except ClientError as e:
-                print(f"Error deleting self image from S3: {e}")
+                logger.error(f"Error deleting self image from S3: {e}")
 
     except Exception as e:
-        print(f"Error connecting to S3: {e}")
+        logger.error(f"Error connecting to S3: {e}")
