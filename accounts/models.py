@@ -8,7 +8,6 @@ from datatable.models import SecurityQuestion
 
 
 class CustomUser(AbstractUser):
-
     fullname = models.CharField(max_length=100, null=True, blank=True)
     # AUTHENTICATION
     email = models.EmailField(_("email address"), unique=True, db_index=True)
@@ -35,7 +34,6 @@ class CustomUser(AbstractUser):
 
 
 class CustomerProfile(models.Model):
-
     class Gender(models.TextChoices):
         MALE = "Male"
         FEMALE = "Female"

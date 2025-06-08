@@ -1,0 +1,321 @@
+import uuid
+from datetime import date, datetime
+from typing import Optional
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+from django.conf import settings
+import boto3
+from botocore.exceptions import ClientError
+from .choices import StageChoices, DocumentTypeChoices, DecisionChoices
+
+
+class OnboardingStage(models.Model):
+    user = models.OneToOneField(
+        "accounts.CustomUser", on_delete=models.CASCADE, related_name="onboarding_stage"
+    )
+    stage = models.CharField(
+        max_length=20,
+        choices=StageChoices.choices,
+        default=StageChoices.DOCUMENT_UPLOAD,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "onboarding_stages"
+        indexes = [
+            models.Index(fields=["user", "stage"]),
+            models.Index(fields=["stage", "updated_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.stage}"
+
+
+class IdCardField(models.JSONField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("default", dict)
+        super().__init__(*args, **kwargs)
+
+    def validate(self, value, model_instance):
+        super().validate(value, model_instance)
+        if value and not isinstance(value, dict):
+            raise ValidationError("Field must be a dictionary")
+        if value and ("content" not in value or "confidence" not in value):
+            raise ValidationError('Field must contain "content" and "confidence" keys')
+
+
+class IdCard(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        "accounts.CustomUser", on_delete=models.CASCADE, related_name="id_card"
+    )
+
+    first_name = IdCardField()
+    middle_name = IdCardField(null=True, blank=True)
+    last_name = IdCardField()
+    date_of_birth = IdCardField()
+    gender = IdCardField()
+    id_number = IdCardField(null=True, blank=True)
+    document_number = IdCardField()
+    date_of_issue = IdCardField()
+    date_of_expiry = IdCardField()
+    country = IdCardField()
+    state = IdCardField(null=True, blank=True)
+    nationality = IdCardField(null=True, blank=True)
+    mrz = IdCardField(null=True, blank=True)
+
+    document_type = models.CharField(max_length=20, choices=DocumentTypeChoices.choices)
+
+    verified = models.BooleanField(default=False)
+    is_confirmed = models.BooleanField(default=False)
+    decision = models.CharField(
+        max_length=20, choices=DecisionChoices.choices, default=DecisionChoices.PENDING
+    )
+    review_score = models.IntegerField(default=0)
+    reject_score = models.IntegerField(default=0)
+
+    longitude = models.FloatField(null=True, blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+
+    front_image = models.ImageField(
+        upload_to="id_cards/front",
+        null=True,
+        blank=True,
+        help_text="Front side of the ID document",
+    )
+    back_image = models.ImageField(
+        upload_to="id_cards/back",
+        null=True,
+        blank=True,
+        help_text="Back side of the ID document",
+    )
+
+    self_image = models.ImageField(
+        upload_to="id_cards/self",
+        null=True,
+        blank=True,
+        help_text="Selfie with the ID document",
+    )
+
+    selfie_video = models.FileField(
+        upload_to="id_cards/selfie_video",
+        null=True,
+        blank=True,
+        help_text="Selfie video for verification",
+    )
+
+    additional_images = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Additional image URLs/paths stored as JSON array",
+    )
+
+    id_number_text = models.CharField(
+        max_length=100, blank=True, null=True, unique=True
+    )
+    document_number_text = models.CharField(max_length=100, blank=True, unique=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "id_cards"
+        indexes = [
+            models.Index(fields=["user", "document_type"]),
+            models.Index(fields=["decision", "created_at"]),
+            models.Index(fields=["id_number_text"]),
+            models.Index(fields=["document_number_text"]),
+            models.Index(fields=["verified", "is_confirmed"]),
+        ]
+
+    def __str__(self):
+        return f"ID Card for {self.user.username} ({self.document_type})"
+
+    def save(self, *args, **kwargs):
+        if self.id_number:
+            self.id_number_text = self.id_number.get("content", "")
+        if self.document_number:
+            self.document_number_text = self.document_number.get("content", "")
+        super().save(*args, **kwargs)
+
+    @property
+    def full_name(self) -> str:
+        first = self.first_name.get("content", "") if self.first_name else ""
+        last = self.last_name.get("content", "") if self.last_name else ""
+        middle = self.middle_name.get("content", "") if self.middle_name else ""
+
+        if middle:
+            return f"{first} {middle} {last}".strip()
+        return f"{first} {last}".strip()
+
+    def _parse_date(self, date_str: str) -> date:
+        try:
+            return datetime.strptime(date_str, "%d/%m/%Y").date()
+        except ValueError:
+            try:
+                return datetime.fromisoformat(date_str).date()
+            except ValueError:
+                for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d-%m-%Y"]:
+                    try:
+                        return datetime.strptime(date_str, fmt).date()
+                    except ValueError:
+                        continue
+                raise ValueError(f"Unable to parse date: {date_str}")
+
+    @property
+    def age(self) -> Optional[int]:
+        if not self.date_of_birth or "content" not in self.date_of_birth:
+            return None
+
+        try:
+            birth_date = self._parse_date(self.date_of_birth["content"])
+            today = date.today()
+
+            age = today.year - birth_date.year
+            if today.month < birth_date.month or (
+                today.month == birth_date.month and today.day < birth_date.day
+            ):
+                age -= 1
+
+            return age
+        except (ValueError, KeyError):
+            return None
+
+    @property
+    def expired(self) -> Optional[bool]:
+        if not self.date_of_expiry or "content" not in self.date_of_expiry:
+            return None
+
+        try:
+            expiry_date = self._parse_date(self.date_of_expiry["content"])
+            return expiry_date < date.today()
+        except (ValueError, KeyError):
+            return None
+
+    @property
+    def confidence_score(self) -> float:
+        confidence_fields = [
+            self.first_name,
+            self.middle_name,
+            self.last_name,
+            self.date_of_birth,
+            self.gender,
+            self.id_number,
+            self.document_number,
+            self.date_of_issue,
+            self.date_of_expiry,
+            self.country,
+            self.nationality,
+            self.state,
+            self.mrz,
+        ]
+
+        scores = []
+        for field in confidence_fields:
+            if field is not None and isinstance(field, dict) and "confidence" in field:
+                scores.append(field["confidence"])
+
+        if not scores:
+            return 0.0
+
+        return round(sum(scores) / len(scores), 2)
+
+    @property
+    def low_confidence_fields(self) -> list:
+        threshold = 0.8
+        low_confidence = []
+
+        field_mapping = {
+            "first_name": self.first_name,
+            "middle_name": self.middle_name,
+            "last_name": self.last_name,
+            "date_of_birth": self.date_of_birth,
+            "gender": self.gender,
+            "id_number": self.id_number,
+            "document_number": self.document_number,
+            "date_of_issue": self.date_of_issue,
+            "date_of_expiry": self.date_of_expiry,
+            "country": self.country,
+            "nationality": self.nationality,
+            "state": self.state,
+            "mrz": self.mrz,
+        }
+
+        for field_name, field_value in field_mapping.items():
+            if (
+                field_value
+                and isinstance(field_value, dict)
+                and "confidence" in field_value
+                and field_value["confidence"] < threshold
+            ):
+                low_confidence.append(
+                    {
+                        "field": field_name,
+                        "confidence": field_value["confidence"],
+                        "content": field_value.get("content", ""),
+                    }
+                )
+
+        return low_confidence
+
+    def get_field_value(self, field_name: str) -> Optional[str]:
+        field_value = getattr(self, field_name, None)
+        if field_value and isinstance(field_value, dict):
+            return field_value.get("content")
+        return None
+
+    def get_field_confidence(self, field_name: str) -> Optional[float]:
+        """Get confidence score for a specific field"""
+        field_value = getattr(self, field_name, None)
+        if field_value and isinstance(field_value, dict):
+            return field_value.get("confidence")
+        return None
+
+
+@receiver(post_delete, sender=IdCard)
+def delete_id_card_files_from_s3(sender, instance, **kwargs):
+    if not settings.USE_S3:
+        return
+
+    if not (instance.front_image or instance.back_image or instance.self_image):
+        return
+
+    try:
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME,
+        )
+
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+
+        if instance.front_image:
+            try:
+                s3_client.delete_object(
+                    Bucket=bucket_name, Key=instance.front_image.name
+                )
+            except ClientError as e:
+                print(f"Error deleting front image from S3: {e}")
+
+        if instance.back_image:
+            try:
+                s3_client.delete_object(
+                    Bucket=bucket_name, Key=instance.back_image.name
+                )
+            except ClientError as e:
+                print(f"Error deleting back image from S3: {e}")
+
+        if instance.self_image:
+            try:
+                s3_client.delete_object(
+                    Bucket=bucket_name, Key=instance.self_image.name
+                )
+            except ClientError as e:
+                print(f"Error deleting self image from S3: {e}")
+
+    except Exception as e:
+        print(f"Error connecting to S3: {e}")

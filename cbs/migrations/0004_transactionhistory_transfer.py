@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cbs", "0003_alter_bankaccount_options_bankaccount_default"),
         ("contenttypes", "0002_remove_content_type_name"),

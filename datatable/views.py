@@ -124,7 +124,6 @@ class OtherBankViewset(ModelViewSet):
         data = {}
 
         try:
-
             response = resolve_phone_number(
                 phone_number=account_number,
                 network_provider_code=bank.code,
@@ -239,7 +238,6 @@ class NetworkProvidersViewset(ModelViewSet):
         data = {}
 
         try:
-
             response = resolve_phone_number(
                 phone_number=phone_number,
                 network_provider_code=network_provider.code,

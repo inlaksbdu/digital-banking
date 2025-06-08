@@ -1,7 +1,6 @@
 import os
 from celery import Celery
 import logging
-from celery.schedules import crontab
 
 
 logger = logging.getLogger(__name__)
