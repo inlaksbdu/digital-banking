@@ -347,7 +347,7 @@ class IdCardAdmin(admin.ModelAdmin):
     id_number_display.short_description = "ID number"  # type: ignore
     document_number_display = lambda self, obj: self._json_display(  # noqa: E731
         obj, "document_number"
-    )  
+    )
     document_number_display.short_description = "Document number"  # type: ignore
     date_of_issue_display = lambda self, obj: self._json_display(obj, "date_of_issue")  # noqa: E731
     date_of_issue_display.short_description = "Date of issue"  # type: ignore

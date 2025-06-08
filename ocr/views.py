@@ -14,9 +14,14 @@ from rest_framework import generics, permissions, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.exceptions import APIException
 
 from .choices import StageChoices
-from .exceptions import CardVerificationError, UnsupportedDocumentTypeError
+from .exceptions import (
+    CardVerificationError,
+    DocumentVerificationError,
+    UnsupportedDocumentTypeError,
+)
 from .filters import IdCardFilter
 from .models import IdCard, OnboardingStage
 from .serializers import (
@@ -74,6 +79,8 @@ class DocumentOCRView(generics.CreateAPIView):
         except (CardVerificationError, UnsupportedDocumentTypeError) as e:
             logger.error(f"Verification error for user {request.user.id}: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except DocumentVerificationError as e:
+            raise e
         except Exception as e:
             logger.error(
                 f"Unexpected error during OCR for user {request.user.id}: {str(e)}"
@@ -93,8 +100,24 @@ class DocumentOCRView(generics.CreateAPIView):
             validated_data.get("selfie_video"),
         )
 
+        if verification_result.warnings:
+            raise DocumentVerificationError(
+                detail=list(
+                    map(
+                        lambda w: w.model_dump(exclude_none=True),
+                        verification_result.warnings,
+                    )
+                ),
+                error_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                response_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
         if not verification_result.success:
-            raise CardVerificationError("Document verification failed")
+            raise CardVerificationError(
+                "Document verification failed",
+                error_code=status.HTTP_400_BAD_REQUEST,
+                response_code=status.HTTP_400_BAD_REQUEST,
+            )
 
         document_type = None
         for data_item in verification_result.data:
@@ -114,7 +137,9 @@ class DocumentOCRView(generics.CreateAPIView):
 
         if not onboarding_service.is_document_type_supported(document_type):
             raise UnsupportedDocumentTypeError(
-                f"Document type '{document_type}' is not supported"
+                f"Document type '{document_type}' is not supported",
+                error_code=status.HTTP_400_BAD_REQUEST,
+                response_code=status.HTTP_400_BAD_REQUEST,
             )
 
         expiry_date = None
@@ -124,7 +149,11 @@ class DocumentOCRView(generics.CreateAPIView):
                 break
 
         if expiry_date and onboarding_service.is_document_expired(expiry_date):
-            raise CardVerificationError("Document has expired")
+            raise CardVerificationError(
+                "Document has expired",
+                error_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                response_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
 
         s3_urls = aws_service.upload_to_s3(
             user.pk,
