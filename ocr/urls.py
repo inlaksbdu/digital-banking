@@ -22,8 +22,8 @@ urlpatterns = [
     # Admin views
     path("admin/id-cards/", views.IdCardListView.as_view(), name="admin-id-card-list"),
     path(
-        "admin/id-cards/low-confidence/",
-        views.LowConfidenceIdCardsView.as_view(),
-        name="admin-low-confidence",
+        "admin/id-cards/<uuid:id>/delete/",
+        views.IdCardDeleteView.as_view(),
+        name="admin-id-card-delete",
     ),
 ]

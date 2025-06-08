@@ -18,7 +18,7 @@ class OnboardingStageAdmin(admin.ModelAdmin):
     def stage_display(self, obj):
         return obj.get_stage_display()
 
-    stage_display.short_description = "Stage"
+    stage_display.short_description = "Stage"  # type: ignore
 
 
 @admin.register(IdCard)
@@ -140,7 +140,7 @@ class IdCardAdmin(admin.ModelAdmin):
     def full_name_display(self, obj):
         return obj.full_name or "N/A"
 
-    full_name_display.short_description = "Full Name"
+    full_name_display.short_description = "Full Name"  # type: ignore
 
     def confidence_score_display(self, obj):
         score = obj.confidence_score
@@ -152,13 +152,13 @@ class IdCardAdmin(admin.ModelAdmin):
             color = "red"
         return format_html('<span style="color: {};">{:.2%}</span>', color, score)
 
-    confidence_score_display.short_description = "Confidence Score"
+    confidence_score_display.short_description = "Confidence Score"  # type: ignore
 
     def age_display(self, obj):
         age = obj.age
         return f"{age} years" if age is not None else "N/A"
 
-    age_display.short_description = "Age"
+    age_display.short_description = "Age"  # type: ignore
 
     def expired_display(self, obj):
         expired = obj.expired
@@ -169,7 +169,7 @@ class IdCardAdmin(admin.ModelAdmin):
         else:
             return format_html('<span style="color: green;">Valid</span>')
 
-    expired_display.short_description = "Document Status"
+    expired_display.short_description = "Document Status"  # type: ignore
 
     def low_confidence_fields_display(self, obj):
         fields = obj.low_confidence_fields
@@ -182,7 +182,7 @@ class IdCardAdmin(admin.ModelAdmin):
 
         return mark_safe("<br>".join(field_list))
 
-    low_confidence_fields_display.short_description = "Low Confidence Fields"
+    low_confidence_fields_display.short_description = "Low Confidence Fields"  # type: ignore
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("user")
@@ -198,22 +198,20 @@ class IdCardAdmin(admin.ModelAdmin):
         updated = queryset.update(verified=True)
         self.message_user(request, f"{updated} ID cards marked as verified.")
 
-    mark_as_verified.short_description = "Mark selected ID cards as verified"
-
     def mark_as_unverified(self, request, queryset):
         updated = queryset.update(verified=False)
         self.message_user(request, f"{updated} ID cards marked as unverified.")
 
-    mark_as_unverified.short_description = "Mark selected ID cards as unverified"
+    mark_as_unverified.short_description = "Mark selected ID cards as unverified"  # type: ignore
 
     def approve_decision(self, request, queryset):
         updated = queryset.update(decision=DecisionChoices.APPROVED)
         self.message_user(request, f"{updated} ID cards approved.")
 
-    approve_decision.short_description = "Approve selected ID cards"
+    approve_decision.short_description = "Approve selected ID cards"  # type: ignore
 
     def reject_decision(self, request, queryset):
         updated = queryset.update(decision=DecisionChoices.REJECTED)
         self.message_user(request, f"{updated} ID cards rejected.")
 
-    reject_decision.short_description = "Reject selected ID cards"
+    reject_decision.short_description = "Reject selected ID cards"  # type: ignore

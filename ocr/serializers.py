@@ -17,14 +17,12 @@ class IdCardSerializer(serializers.ModelSerializer):
     age = serializers.ReadOnlyField()
     expired = serializers.ReadOnlyField()
     low_confidence_fields = serializers.ReadOnlyField()
-    user_display = serializers.StringRelatedField(source="user", read_only=True)
 
     class Meta:
         model = IdCard
         fields = [
             "id",
             "user",
-            "user_display",
             "first_name",
             "middle_name",
             "last_name",
@@ -61,7 +59,6 @@ class IdCardSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "user",
-            "user_display",
             "created_at",
             "updated_at",
             "confidence_score",
@@ -213,7 +210,7 @@ class IdCardConfirmSerializer(serializers.Serializer):
                 - value.year
                 - ((today.month, today.day) < (value.month, value.day))
             )
-            # if age < 18:
+            # if age < 18:  # TODO: Uncomment this if we want to restrict users under 18
             #     raise serializers.ValidationError("User must be at least 18 years old")
             if age > 120:
                 raise serializers.ValidationError("Invalid birth date")
@@ -237,14 +234,12 @@ class IdCardConfirmSerializer(serializers.Serializer):
 
 
 class OnboardingStageSerializer(serializers.ModelSerializer):
-    user_display = serializers.StringRelatedField(source="user", read_only=True)
     stage_display = serializers.CharField(source="get_stage_display", read_only=True)
 
     class Meta:
         model = OnboardingStage
         fields = [
             "user",
-            "user_display",
             "stage",
             "stage_display",
             "created_at",
@@ -252,7 +247,6 @@ class OnboardingStageSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "user",
-            "user_display",
             "stage_display",
             "created_at",
             "updated_at",

@@ -73,7 +73,6 @@ class OnboardingService:
             if not doc_type_field:
                 raise CardVerificationError("Document type is required")
 
-            # Convert document type codes to our choices
             doc_type_mapping = {
                 "P": DocumentTypeChoices.PASSPORT,
                 "I": DocumentTypeChoices.NATIONAL_ID,

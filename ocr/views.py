@@ -1,30 +1,33 @@
-from rest_framework import generics, status, permissions
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
-from django.shortcuts import get_object_or_404
-from django.db import transaction
+from datetime import date
+from typing import Any, Dict, override
+
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db import transaction
+from django.db.models import Case, FloatField, Prefetch, QuerySet, When
+from django.db.models.functions import Cast, Coalesce
+from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
-from django.db.models import Prefetch
-from django.contrib.auth import get_user_model
-from datetime import date
 from loguru import logger
-from typing import Dict, Any
+from rest_framework import generics, permissions, status
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.request import Request
+from rest_framework.response import Response
+
+from .choices import StageChoices
+from .exceptions import CardVerificationError, UnsupportedDocumentTypeError
 from .models import IdCard, OnboardingStage
 from .serializers import (
-    IdCardSerializer,
-    IdCardCreateSerializer,
     IdCardConfirmSerializer,
+    IdCardCreateSerializer,
+    IdCardSerializer,
     OnboardingStageSerializer,
 )
-from .services.verification import verification_service
 from .services.aws import aws_service
 from .services.onboarding import onboarding_service
-from .exceptions import CardVerificationError, UnsupportedDocumentTypeError
-from .choices import StageChoices
+from .services.verification import verification_service
 
 User = get_user_model()
 
@@ -145,10 +148,21 @@ class DocumentOCRView(generics.CreateAPIView):
 
         cache.delete(f"onboarding_stage_{user.pk}")
 
+        ocr_data = id_card.to_dict(
+            exclude=[
+                "id_number_text",
+                "document_number_text",
+                "updated_at",
+                "additional_images",
+            ],
+            show_field_confidence=True,
+        )
+
         return {
             "status": "success",
             "confidence_score": id_card.confidence_score,
             "decision": id_card.decision,
+            "ocr_data": ocr_data,
             "warnings": [
                 {
                     "code": w.code,
@@ -241,58 +255,72 @@ class IdCardListView(generics.ListAPIView):
     ordering_fields = ["created_at", "updated_at", "confidence_score"]
     ordering = ["-created_at"]
 
-    def get_queryset(self):
-        queryset = IdCard.objects.select_related("user").prefetch_related(
-            Prefetch("user", queryset=User.objects.only("id", "username", "email"))
+    def _get_confidence_annotation(self):
+        """Create database annotation to calculate average confidence score"""
+        # Extract confidence values from JSON fields and calculate average
+        confidence_fields = [
+            'first_name__confidence',
+            'last_name__confidence', 
+            'date_of_birth__confidence',
+            'gender__confidence',
+            'document_number__confidence',
+            'date_of_issue__confidence',
+            'date_of_expiry__confidence',
+            'country__confidence',
+        ]
+        
+        # Create CASE statements to extract confidence values, defaulting to 0 for null fields
+        confidence_cases = []
+        for field in confidence_fields:
+            confidence_cases.append(
+                Case(
+                    When(**{f"{field}__isnull": False}, then=Cast(field, FloatField())),
+                    default=0.0,
+                    output_field=FloatField()
+                )
+            )
+        
+        # Calculate average of non-zero confidence values
+        # We use Coalesce to handle cases where all fields might be null
+        return Coalesce(
+            Case(
+                When(
+                    # Only calculate average if we have at least one non-null confidence field
+                    **{f"{confidence_fields[0]}__isnull": False}, 
+                    then=sum(confidence_cases) / len(confidence_cases)
+                ),
+                default=0.0,
+                output_field=FloatField()
+            ),
+            0.0
         )
 
-        # Filter by confidence score
-        min_confidence = self.request.query_params.get("min_confidence")
+    @override
+    def get_queryset(self) -> QuerySet[IdCard]:
+        queryset = IdCard.objects.select_related("user").prefetch_related(
+            Prefetch("user", queryset=User.objects.only("id", "username", "email"))
+        ).annotate(
+            calculated_confidence=self._get_confidence_annotation()
+        )
+
+        min_confidence = self.request.GET.get("min_confidence")
         if min_confidence:
             try:
                 min_confidence = float(min_confidence)
-                # This would require a database function to calculate confidence
-                # For now, we'll filter in Python (not ideal for large datasets)
-                queryset = [
-                    card for card in queryset if card.confidence_score >= min_confidence
-                ]
+                queryset = queryset.filter(calculated_confidence__gte=min_confidence)
             except ValueError:
                 pass
 
         return queryset
 
 
-class LowConfidenceIdCardsView(generics.ListAPIView):
-    """Get ID cards with low confidence scores (Admin only)"""
-
-    serializer_class = IdCardSerializer
+class IdCardDeleteView(generics.DestroyAPIView):
     permission_classes = [permissions.IsAdminUser]
 
-    def get_queryset(self):
-        threshold = float(self.request.query_params.get("threshold", 0.8))
-        return (
-            IdCard.objects.select_related("user")
-            .filter(
-                # This would require a custom database function to filter by confidence
-                # For now, we'll return all and filter in the serializer
-            )
-            .order_by("created_at")
-        )
+    def get_object(self):
+        return get_object_or_404(IdCard, id=self.kwargs.get("id"))
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        threshold = float(request.query_params.get("threshold", 0.8))
-
-        # Filter by confidence score (in Python for now)
-        low_confidence_cards = [
-            card for card in queryset if card.confidence_score < threshold
-        ]
-
-        serializer = self.get_serializer(low_confidence_cards, many=True)
-        return Response(
-            {
-                "count": len(low_confidence_cards),
-                "threshold": threshold,
-                "results": serializer.data,
-            }
-        )
+    def destroy(self, request, *args, **kwargs):
+        id_card = self.get_object()
+        id_card.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
