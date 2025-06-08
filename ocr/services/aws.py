@@ -57,9 +57,7 @@ class AWSService:
             logger.error(error_msg)
             raise ClientError({"Error": {"Message": error_msg}}, "DeleteObject")
 
-    def get_image_url_if_exists(
-        self, key: str
-    ) -> Optional[str]:
+    def get_image_url_if_exists(self, key: str) -> Optional[str]:
         try:
             self.s3.head_object(Bucket=self.bucket_name, Key=key)
             return f"s3://{self.bucket_name}/{key}"
@@ -235,9 +233,7 @@ class AWSService:
             max_workers=4,
         )
 
-    def generate_presigned_url(
-        self, key: str, expiration: int = 3600
-    ) -> str:
+    def generate_presigned_url(self, key: str, expiration: int = 3600) -> str:
         url = self.s3.generate_presigned_url(
             "get_object",
             Params={
@@ -252,7 +248,7 @@ class AWSService:
     @staticmethod
     def get_s3_key(s3_url: str) -> str:
         parsed = urlparse(s3_url)
-        return parsed.path.lstrip('/')
+        return parsed.path.lstrip("/")
 
     @staticmethod
     def get_s3_bucket(s3_url: str) -> str:

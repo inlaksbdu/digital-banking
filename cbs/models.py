@@ -973,7 +973,6 @@ class BillSharing(models.Model):
 
 
 class BillSharingPyee(models.Model):
-
     class Status(models.TextChoices):
         PENDING = "PENDING"
         PAID = "PAID"

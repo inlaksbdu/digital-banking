@@ -167,7 +167,6 @@ class IdCard(models.Model):
                     except ValueError:
                         continue
                 raise ValueError(f"Unable to parse date: {date_str}")
-        
 
     @property
     def age(self) -> Optional[int]:
@@ -277,53 +276,70 @@ class IdCard(models.Model):
             return field_value.get("confidence")
         return None
 
-    def to_dict(self, include: List[str] = ["*"], exclude: List[str]|None = None, show_field_confidence: bool = False) -> Dict[str, Any]:
+    def to_dict(
+        self,
+        include: List[str] = ["*"],
+        exclude: List[str] | None = None,
+        show_field_confidence: bool = False,
+    ) -> Dict[str, Any]:
         data = {}
         if "*" in include:
             include = [field.name for field in self._meta.fields]
         if exclude:
             include = [field for field in include if field not in exclude]
-        
-        image_fields = ['front_image', 'back_image', 'self_image', 'selfie_video']
-        json_array_image_fields = ['additional_images']
-        
+
+        image_fields = ["front_image", "back_image", "self_image", "selfie_video"]
+        json_array_image_fields = ["additional_images"]
+
         for field in include:
             try:
                 value = self.get_field_value(field)
-                
+
                 if field in image_fields and value:
-                    if isinstance(value, str) and (value.startswith('s3://') or value.startswith('id_cards/')):
+                    if isinstance(value, str) and (
+                        value.startswith("s3://") or value.startswith("id_cards/")
+                    ):
                         try:
-                            if value.startswith('s3://'):
+                            if value.startswith("s3://"):
                                 key = aws_service.get_s3_key(value)
                             else:
                                 key = value
-                            
+
                             presigned_url = aws_service.generate_presigned_url(key)
                             value = presigned_url if presigned_url else value
                         except Exception as e:
-                            logger.error(f"Error generating presigned URL for {field}: {e}")
-                
+                            logger.error(
+                                f"Error generating presigned URL for {field}: {e}"
+                            )
+
                 elif field in json_array_image_fields and value:
                     if isinstance(value, list):
                         presigned_urls = []
                         for url in value:
-                            if isinstance(url, str) and (url.startswith('s3://') or url.startswith('id_cards/')):
+                            if isinstance(url, str) and (
+                                url.startswith("s3://") or url.startswith("id_cards/")
+                            ):
                                 try:
-                                    if url.startswith('s3://'):
+                                    if url.startswith("s3://"):
                                         key = aws_service.get_s3_key(url)
                                     else:
                                         key = url
-                                    
-                                    presigned_url = aws_service.generate_presigned_url(key)
-                                    presigned_urls.append(presigned_url if presigned_url else url)
+
+                                    presigned_url = aws_service.generate_presigned_url(
+                                        key
+                                    )
+                                    presigned_urls.append(
+                                        presigned_url if presigned_url else url
+                                    )
                                 except Exception as e:
-                                    logger.error(f"Error generating presigned URL for {url} in {field}: {e}")
+                                    logger.error(
+                                        f"Error generating presigned URL for {url} in {field}: {e}"
+                                    )
                                     presigned_urls.append(url)
                             else:
                                 presigned_urls.append(url)
                         value = presigned_urls
-                
+
                 if show_field_confidence:
                     confidence = self.get_field_confidence(field)
                     if confidence is not None:
@@ -335,14 +351,15 @@ class IdCard(models.Model):
                         data[field] = value
                 else:
                     data[field] = value
-                    
+
             except AttributeError:
                 continue
             except Exception as e:
                 logger.error(f"Error processing field {field}: {e}")
                 continue
-                
+
         return data
+
 
 @receiver(post_delete, sender=IdCard)
 def delete_id_card_files_from_s3(sender, instance, **kwargs):

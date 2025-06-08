@@ -112,7 +112,19 @@ class OnboardingService:
                 front_image=s3_urls.get("front"),
                 back_image=s3_urls.get("back"),
                 self_image=s3_urls.get("selfie"),
-                # additional_images=list(s3_urls.values()) if s3_urls else [],
+                additional_images=list(
+                    set(s3_urls.values())
+                    - set(
+                        [
+                            s3_urls.get("front"),
+                            s3_urls.get("back"),
+                            s3_urls.get("selfie"),
+                            s3_urls.get("selfie_video"),
+                        ]
+                    )
+                )
+                if s3_urls
+                else [],
             )
 
             return id_card
