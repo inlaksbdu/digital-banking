@@ -1075,6 +1075,13 @@ class Card(models.Model):
         null=True,
         blank=True,
     )
+    virtual_card_balance = models.DecimalField(
+        max_digits=19,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        default=0,
+    )
     card_status = models.CharField(
         choices=CardStatus.choices, default=CardStatus.ACTIVE, max_length=50
     )

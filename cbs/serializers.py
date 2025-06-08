@@ -610,6 +610,7 @@ class CardSerializer(serializers.ModelSerializer):
             "card_type",
             "card_form",
             "virtual_card_type",
+            "virtual_card_balance",
             "card_status",
             "date_created",
         )
@@ -691,3 +692,17 @@ class CreateVirtualCardSerializer(serializers.ModelSerializer):
             "currency",
             "virtual_card_type",
         )
+
+
+class VirtualCardTopUpSerializer(serializers.Serializer):
+    account_number = serializers.CharField()
+    amount = serializers.IntegerField()
+
+    def validate_account_number(self, account_number):
+        if not models.BankAccount.objects.filter(
+            account_number=account_number,
+        ).exists():
+            raise exceptions.AccountNumberNotExist()
+        return models.BankAccount.objects.filter(
+            account_number=account_number,
+        ).first()
