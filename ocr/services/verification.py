@@ -1,12 +1,14 @@
 import base64
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
-from django.core.files.uploadedfile import InMemoryUploadedFile
+
 from django.conf import settings
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from idanalyzer2 import Profile, Scanner
 from loguru import logger
 
 from ..choices import DocumentTypeChoices
-from ..schemas import DocumentVerificationResponse, CardData, Warning
+from ..schemas import CardData, DocumentVerificationResponse, Warning
 
 
 class VerificationService:
@@ -24,7 +26,9 @@ class VerificationService:
         self.scanner.setProfile(profile)
 
     @staticmethod
-    def encode_file(file: InMemoryUploadedFile) -> str:
+    def encode_file(file: InMemoryUploadedFile | None) -> str | None:
+        if file is None:
+            return None
         file.seek(0)
         file_content = file.read()
         file.seek(0)
@@ -38,10 +42,13 @@ class VerificationService:
         face_video: Optional[InMemoryUploadedFile] = None,
     ) -> DocumentVerificationResponse:
         try:
-            front_encoded = self.encode_file(id_card_front)
-            back_encoded = self.encode_file(id_card_back) if id_card_back else None
-            face_encoded = self.encode_file(face)
-            face_video_encoded = self.encode_file(face_video) if face_video else None
+            with ThreadPoolExecutor() as executor:
+                front_encoded, back_encoded, face_encoded, face_video_encoded = (
+                    executor.map(
+                        self.encode_file,
+                        [id_card_front, id_card_back, face, face_video],
+                    )
+                )
 
             if face_video_encoded and back_encoded:
                 resp = self.scanner.scan(

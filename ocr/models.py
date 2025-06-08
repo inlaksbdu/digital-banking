@@ -2,12 +2,13 @@ import uuid
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
+import gevent
 from botocore.exceptions import ClientError
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
+from gevent import spawn
 from loguru import logger
 
 from .choices import DecisionChoices, DocumentTypeChoices, StageChoices
@@ -361,35 +362,64 @@ class IdCard(models.Model):
         return data
 
 
-@receiver(post_delete, sender=IdCard)
-def delete_id_card_files_from_s3(sender, instance, **kwargs):
-    if not settings.USE_S3:
-        return
+def delete_single_file_from_s3(file_ref, file_type):
+    try:
+        key = aws_service.get_s3_key(file_ref)
+        aws_service.delete_from_s3(key)
+        logger.info(f"Successfully deleted {file_type} from S3: {key}")
+    except ClientError as e:
+        logger.error(f"Error deleting {file_type} from S3: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error deleting {file_type} from S3: {e}")
 
+
+@receiver(post_delete, sender=IdCard)
+def delete_id_card_files_from_s3(sender, instance: IdCard, **kwargs):
     if not (instance.front_image or instance.back_image or instance.self_image):
         return
 
     try:
+        deletion_tasks = []
+
         if instance.front_image:
-            try:
-                key = aws_service.get_s3_key(instance.front_image.name)
-                aws_service.delete_from_s3(key)
-            except ClientError as e:
-                logger.error(f"Error deleting front image from S3: {e}")
+            deletion_tasks.append(
+                spawn(
+                    delete_single_file_from_s3, instance.front_image.name, "front_image"
+                )
+            )
 
         if instance.back_image:
-            try:
-                key = aws_service.get_s3_key(instance.back_image.name)
-                aws_service.delete_from_s3(key)
-            except ClientError as e:
-                logger.error(f"Error deleting back image from S3: {e}")
+            deletion_tasks.append(
+                spawn(
+                    delete_single_file_from_s3, instance.back_image.name, "back_image"
+                )
+            )
 
         if instance.self_image:
-            try:
-                key = aws_service.get_s3_key(instance.self_image.name)
-                aws_service.delete_from_s3(key)
-            except ClientError as e:
-                logger.error(f"Error deleting self image from S3: {e}")
+            deletion_tasks.append(
+                spawn(
+                    delete_single_file_from_s3, instance.self_image.name, "self_image"
+                )
+            )
+
+        if instance.selfie_video:
+            deletion_tasks.append(
+                spawn(
+                    delete_single_file_from_s3,
+                    instance.selfie_video.name,
+                    "selfie_video",
+                )
+            )
+
+        if instance.additional_images:
+            for i, image in enumerate(instance.additional_images):
+                deletion_tasks.append(
+                    spawn(delete_single_file_from_s3, image, f"additional_image_{i}")
+                )
+
+        gevent.joinall(deletion_tasks)
+
+        logger.info(f"Completed deletion of {len(deletion_tasks)} files from S3")
 
     except Exception as e:
         logger.error(f"Error connecting to S3: {e}")

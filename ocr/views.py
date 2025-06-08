@@ -1,11 +1,10 @@
 from datetime import date
-from typing import Any, Dict, override
+from typing import Any, Dict
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Case, FloatField, Prefetch, QuerySet, When
-from django.db.models.functions import Cast, Coalesce
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -18,6 +17,7 @@ from rest_framework.response import Response
 
 from .choices import StageChoices
 from .exceptions import CardVerificationError, UnsupportedDocumentTypeError
+from .filters import IdCardFilter
 from .models import IdCard, OnboardingStage
 from .serializers import (
     IdCardConfirmSerializer,
@@ -150,6 +150,7 @@ class DocumentOCRView(generics.CreateAPIView):
 
         ocr_data = id_card.to_dict(
             exclude=[
+                "user",
                 "id_number_text",
                 "document_number_text",
                 "updated_at",
@@ -250,68 +251,15 @@ class IdCardDetailView(generics.RetrieveAPIView):
 class IdCardListView(generics.ListAPIView):
     serializer_class = IdCardSerializer
     permission_classes = [permissions.IsAdminUser]
-    filterset_fields = ["document_type", "decision", "verified", "is_confirmed"]
+    filterset_class = IdCardFilter
     search_fields = ["user__username", "user__email", "document_number_text"]
     ordering_fields = ["created_at", "updated_at", "confidence_score"]
     ordering = ["-created_at"]
 
-    def _get_confidence_annotation(self):
-        """Create database annotation to calculate average confidence score"""
-        # Extract confidence values from JSON fields and calculate average
-        confidence_fields = [
-            'first_name__confidence',
-            'last_name__confidence', 
-            'date_of_birth__confidence',
-            'gender__confidence',
-            'document_number__confidence',
-            'date_of_issue__confidence',
-            'date_of_expiry__confidence',
-            'country__confidence',
-        ]
-        
-        # Create CASE statements to extract confidence values, defaulting to 0 for null fields
-        confidence_cases = []
-        for field in confidence_fields:
-            confidence_cases.append(
-                Case(
-                    When(**{f"{field}__isnull": False}, then=Cast(field, FloatField())),
-                    default=0.0,
-                    output_field=FloatField()
-                )
-            )
-        
-        # Calculate average of non-zero confidence values
-        # We use Coalesce to handle cases where all fields might be null
-        return Coalesce(
-            Case(
-                When(
-                    # Only calculate average if we have at least one non-null confidence field
-                    **{f"{confidence_fields[0]}__isnull": False}, 
-                    then=sum(confidence_cases) / len(confidence_cases)
-                ),
-                default=0.0,
-                output_field=FloatField()
-            ),
-            0.0
-        )
-
-    @override
-    def get_queryset(self) -> QuerySet[IdCard]:
-        queryset = IdCard.objects.select_related("user").prefetch_related(
+    def get_queryset(self):  # type: ignore
+        return IdCard.objects.select_related("user").prefetch_related(
             Prefetch("user", queryset=User.objects.only("id", "username", "email"))
-        ).annotate(
-            calculated_confidence=self._get_confidence_annotation()
         )
-
-        min_confidence = self.request.GET.get("min_confidence")
-        if min_confidence:
-            try:
-                min_confidence = float(min_confidence)
-                queryset = queryset.filter(calculated_confidence__gte=min_confidence)
-            except ValueError:
-                pass
-
-        return queryset
 
 
 class IdCardDeleteView(generics.DestroyAPIView):
