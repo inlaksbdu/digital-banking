@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from . import models
 from django.http import HttpRequest
+from accounts.serializers import ShortUserInfoSerializer
+from helpers import exceptions
+from accounts.models import CustomUser
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
@@ -340,4 +343,349 @@ class LoanRequestCreateSerializer(serializers.ModelSerializer):
             "amount",
             "duration",
             "files",
+        )
+
+
+class AppointmentSeriailzer(serializers.ModelSerializer):
+    class Meta:
+        model = models.AppointmentBooking
+        fields = (
+            "id",
+            "user",
+            "service_type",
+            "source_account",
+            "source_account_name",
+            "amount",
+            "currency",
+            "cheque_number",
+            "name_of_cheque_issuer",
+            "issuing_bank",
+            "booking_type",
+            "fullname",
+            "id_number",
+            "phone_number",
+            "branch",
+            "date",
+            "time",
+            "booking_code",
+            "status",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "booking_code",
+            "application_id",
+            "status",
+        )
+
+
+class ExpenseLimitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ExpenseLimit
+        fields = (
+            "id",
+            "limit_type",
+            "user",
+            "account",
+            "category",
+            "limit_amount",
+            "amount_spent",
+            "status",
+            "start_date",
+            "end_date",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "amount_spent",
+            "status",
+        )
+
+
+class CardlessWithdrawalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CardlessWithdrawal
+        fields = (
+            "id",
+            "user",
+            "source_account",
+            "token_type",
+            "token",
+            "token_redeemed",
+            "token_expired",
+            "amount",
+            "valid_through",
+            "withdrawal_party",
+            "recipient_phone_number",
+            "recipient_name",
+            "notes",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "token",
+            "token_redeemed",
+            "token_expired",
+        )
+
+
+class ValidateCardlessWithdrawalTokenSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+class EmailIndemnitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.EmailIndemnity
+        fields = (
+            "id",
+            "user",
+            "source_account",
+            "primary_email",
+            "secondary_email",
+            "phone_number",
+            "airtime",
+            "data",
+            "bill_payment",
+            "international_transfer",
+            "account_to_wallet",
+            "other_bank_transfer",
+            "same_bank_transfer",
+            "own_account_transfer",
+            "merchant_payment",
+            "date_created",
+            "last_updated",
+        )
+        read_only_fields = (
+            "user",
+            "date_created",
+            "last_updated",
+        )
+
+
+class BillSharingPayeeInfoSerializer(serializers.ModelSerializer):
+    user = ShortUserInfoSerializer(read_only=True)
+
+    class Meta:
+        model = models.BillSharingPyee
+        fields = (
+            "user",
+            "amount",
+            "status",
+            "comments",
+        )
+
+
+class BillSharingSerializer(serializers.ModelSerializer):
+    initiator = ShortUserInfoSerializer(read_only=True)
+
+    bill_sharing_payees = BillSharingPayeeInfoSerializer(read_only=True, many=True)
+
+    class Meta:
+        model = models.BillSharing
+        fields = (
+            "id",
+            "title",
+            "initiator",
+            "merchant_number",
+            "merchant_name",
+            "bill_amount",
+            "paid_amount",
+            "bill_sharing_payees",
+            "date_created",
+        )
+        read_only_fields = (
+            "date_created",
+            "paid_amount",
+        )
+
+
+class CreateBillSharingPayee(serializers.Serializer):
+    user = serializers.IntegerField()
+    amount = serializers.DecimalField(max_digits=19, decimal_places=2)
+
+
+class BillSharingCreateSerializer(serializers.ModelSerializer):
+    share_with = serializers.ListField(
+        child=CreateBillSharingPayee(),
+    )
+
+    def to_representation(self, instance):
+        return BillSharingSerializer(instance).data
+
+    class Meta:
+        model = models.BillSharing
+        fields = (
+            "title",
+            "merchant_number",
+            "merchant_name",
+            "bill_amount",
+            "share_with",
+        )
+
+    def validate(self, attrs):
+        share_with = attrs.get("share_with")
+
+        if len(share_with) < 2:
+            raise exceptions.GeneralException(
+                detail="Bill sharing must have at least 2 payees"
+            )
+
+        total_payee_amount = 0
+        for user in share_with:
+            user_id = user.get("user")
+            total_payee_amount += user.get("amount")
+            if not CustomUser.objects.filter(id=user_id).exists():
+                raise exceptions.GeneralException(
+                    detail=f"User with id {user_id} does not exist"
+                )
+
+        if total_payee_amount != attrs.get("bill_amount"):
+            raise exceptions.GeneralException(
+                detail="Total amount of payees must be equal to the bill amount"
+            )
+        return super().validate(attrs)
+
+
+class BillSharingShortInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.BillSharing
+        fields = (
+            "id",
+            "title",
+            "merchant_number",
+            "merchant_name",
+            "bill_amount",
+            "date_created",
+        )
+
+
+class BillSharingPayeeSerializer(serializers.ModelSerializer):
+    bill_sharing = BillSharingShortInfoSerializer(read_only=True)
+
+    class Meta:
+        model = models.BillSharingPyee
+        fields = (
+            "id",
+            "bill_sharing",
+            "user",
+            "amount",
+            "status",
+            "date_created",
+        )
+
+
+class MakeBillSharingPaymentAccountSerializer(serializers.Serializer):
+    account_number = serializers.CharField()
+
+    def validate_account_number(self, account_number):
+        if not models.BankAccount.objects.filter(
+            account_number=account_number,
+        ).exists():
+            raise exceptions.AccountNumberNotExist()
+        return models.BankAccount.objects.filter(
+            account_number=account_number,
+        ).first()
+
+
+class RejectBillSharingRequestSerializer(serializers.Serializer):
+    reason = serializers.CharField()
+
+
+class CardSerializer(serializers.ModelSerializer):
+    card_holder = serializers.SerializerMethodField(read_only=True)
+
+    def get_card_holder(self, obj):
+        return obj.user.fullname
+
+    class Meta:
+        model = models.Card
+        fields = (
+            "id",
+            "user",
+            "card_holder",
+            "card_number",
+            "card_scheme",
+            "card_type",
+            "card_form",
+            "virtual_card_type",
+            "card_status",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "date_created",
+        )
+
+
+class CardRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CardRequest
+        fields = (
+            "id",
+            "user",
+            "source_account",
+            "card_type",
+            "delivery_method",
+            "pick_up_branch",
+            "comments",
+            "status",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "status",
+            "comments",
+            "date_created",
+        )
+
+
+class CardManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CardManagement
+        fields = (
+            "id",
+            "user",
+            "management_type",
+            "card",
+            "reason",
+            "through_date",
+            "delivery_method",
+            "pick_up_branch",
+            "comments",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "status",
+            "comments",
+            "date_created",
+        )
+
+
+class TravelNoticeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.TravelNotice
+        fields = (
+            "id",
+            "user",
+            "departure_date",
+            "return_date",
+            "source_account",
+            "card",
+            "alternative_phone",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "date_created",
+        )
+
+
+class CreateVirtualCardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Card
+        fields = (
+            "card_scheme",
+            "currency",
+            "virtual_card_type",
         )

@@ -5,6 +5,8 @@ from config import celery_app
 from django.conf import settings
 from loguru import logger
 import requests
+from .models import ExpenseLimit, BankAccount
+from datatable.models import TransactionPurpose
 
 
 @celery_app.task
@@ -77,3 +79,39 @@ def get_loan_products():
                 logger.error("=== error getting loand products ", str(e))
     else:
         logger.info("==== rsponse is not 1000 ====")
+
+
+@celery_app.task
+def update_expense_limit(account_id, transaction_purpose, amount):
+    print("== entered function")
+    try:
+        account = BankAccount.objects.get(id=account_id)
+        purpose = TransactionPurpose.objects.get(name=transaction_purpose.strip())
+
+        # check account limit
+        if account.expense_limits:
+            expense_limit = account.expense_limits.filter(
+                limit_type=ExpenseLimit.ExpenseLimitType.ACCOUNT_BUDGET,
+                status=ExpenseLimit.Status.ACTIVE,
+            )
+            if expense_limit.exists():
+                expense_limit = expense_limit.first()
+                expense_limit.amount_spent += amount
+                expense_limit.save()
+
+        # check limit for transaction puprose
+        if account.expense_limits:
+            expense_limit = account.expense_limits.filter(
+                limit_type=ExpenseLimit.ExpenseLimitType.CATEGORICAL_BUDGET,
+                category=purpose,
+                status=ExpenseLimit.Status.ACTIVE,
+            )
+            if expense_limit.exists():
+                expense_limit = expense_limit.first()
+                expense_limit.amount_spent += amount
+                expense_limit.save()
+
+        return "Expense limit updated successfully"
+    except Exception as e:
+        logger.warning(f"An updating expense limit amount {str(e)}")
+        return "Error updating expense limit"
