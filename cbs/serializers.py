@@ -591,3 +591,103 @@ class MakeBillSharingPaymentAccountSerializer(serializers.Serializer):
 
 class RejectBillSharingRequestSerializer(serializers.Serializer):
     reason = serializers.CharField()
+
+
+class CardSerializer(serializers.ModelSerializer):
+    card_holder = serializers.SerializerMethodField(read_only=True)
+
+    def get_card_holder(self, obj):
+        return obj.user.fullname
+
+    class Meta:
+        model = models.Card
+        fields = (
+            "id",
+            "user",
+            "card_holder",
+            "card_number",
+            "card_scheme",
+            "card_type",
+            "card_form",
+            "virtual_card_type",
+            "card_status",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "date_created",
+        )
+
+
+class CardRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CardRequest
+        fields = (
+            "id",
+            "user",
+            "source_account",
+            "card_type",
+            "delivery_method",
+            "pick_up_branch",
+            "comments",
+            "status",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "status",
+            "comments",
+            "date_created",
+        )
+
+
+class CardManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CardManagement
+        fields = (
+            "id",
+            "user",
+            "management_type",
+            "card",
+            "reason",
+            "through_date",
+            "delivery_method",
+            "pick_up_branch",
+            "comments",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "status",
+            "comments",
+            "date_created",
+        )
+
+
+class TravelNoticeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.TravelNotice
+        fields = (
+            "id",
+            "user",
+            "departure_date",
+            "return_date",
+            "source_account",
+            "card",
+            "alternative_phone",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "date_created",
+        )
+
+
+class CreateVirtualCardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Card
+        fields = (
+            "card_scheme",
+            "currency",
+            "virtual_card_type",
+        )

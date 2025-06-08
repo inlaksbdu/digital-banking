@@ -31,6 +31,7 @@ from rest_framework.views import APIView
 from django.db.models import Q
 from django.db import transaction
 from accounts.models import CustomUser
+from faker import Faker
 
 # Create your views here.
 
@@ -1196,3 +1197,91 @@ class BillSharingPayeeViewset(ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+
+@extend_schema(tags=["Cards"])
+class CardViewset(ModelViewSet):
+    queryset = models.Card.objects.all()
+    serializer_class = serializers.CardSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+    filterset_fields = ["card_form"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        raise exceptions.NotAuthorized(detail="You are not authorized to create a card")
+
+    @action(
+        methods=["post"],
+        detail=False,
+        url_path="create-virtual-card",
+        url_name="create-virtual-card",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.CreateVirtualCardSerializer,
+    )
+    def create_virtual_card(self, request: HttpRequest):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # card card number,card expir and card code to serializer data before saving
+        fake = Faker()
+        serializer.validated_data["card_number"] = fake.credit_card_number(
+            card_type="mastercard"
+        )
+        serializer.validated_data["card_expiry"] = fake.credit_card_expire()
+        serializer.validated_data["card_code"] = fake.credit_card_security_code()
+        serializer.validated_data["card_form"] = "VIRTUAL CARD"
+        serializer.validated_data["card_type"] = "DEBIT CARD"
+        instance = serializer.save(user=self.request.user)
+        # instance = None
+        return Response(
+            data=serializers.CardSerializer(
+                instance,
+                context={"request": request},
+                many=False,
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Card Request"])
+class CardRequestViewset(ModelViewSet):
+    queryset = models.CardRequest.objects.all()
+    serializer_class = serializers.CardRequestSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)
+
+
+@extend_schema(tags=["Card Management"])
+class CardManagementViewset(ModelViewSet):
+    queryset = models.CardManagement.objects.all()
+    serializer_class = serializers.CardManagementSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)
+
+
+@extend_schema(tags=["Travel Notice"])
+class TravelNoticeViewset(ModelViewSet):
+    queryset = models.TravelNotice.objects.all()
+    serializer_class = serializers.TravelNoticeSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)

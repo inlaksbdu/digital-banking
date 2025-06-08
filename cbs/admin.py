@@ -226,3 +226,59 @@ class BillSharingAdmin(ModelAdmin):
         "date_created",
     )
     inlines = [BillSharingPayeeInline]
+
+
+@admin.register(models.Card)
+class CardAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "card_number",
+        "card_form",
+        "card_scheme",
+        "card_type",
+        "card_status",
+        "date_created",
+    )
+    list_filter = ["card_status", "card_form", "card_scheme", "card_type"]
+
+
+@admin.register(models.CardRequest)
+class CardRequestAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "card_type",
+        "delivery_method",
+        "pick_up_branch",
+        "status",
+        "date_created",
+    )
+    list_filter = ["card_type", "status"]
+
+
+@admin.register(models.CardManagement)
+class CardManagementAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "card",
+        "management_type",
+        "reason",
+        "date_created",
+    )
+    list_filter = ["management_type"]
+
+
+@admin.register(models.TravelNotice)
+class TravelNoticeAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "departure_date",
+        "return_date",
+        "source_account",
+        "card",
+        "alternative_phone",
+        "date_created",
+    )

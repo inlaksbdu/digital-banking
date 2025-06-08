@@ -37,6 +37,12 @@ router.register("bill-sharing", views.BillSharingViewset, basename="bill-sharing
 router.register(
     "bill-sharing-payee", views.BillSharingPayeeViewset, basename="bill-sharing-payee"
 )
+router.register("cards", views.CardViewset, basename="cards")
+router.register("card-requests", views.CardRequestViewset, basename="card-requests")
+router.register(
+    "card-management", views.CardManagementViewset, basename="card-management"
+)
+router.register("travel-notice", views.TravelNoticeViewset, basename="travel-notice")
 urlpatterns = [
     path(
         "fx-rates/",

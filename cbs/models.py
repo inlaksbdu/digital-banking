@@ -6,6 +6,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from datatable import models as data_tables
 from phonenumber_field.modelfields import PhoneNumberField
+from creditcards.models import CardNumberField, CardExpiryField, SecurityCodeField
+from django.utils.translation import gettext_lazy as _
 
 # Create your models here.
 
@@ -1000,6 +1002,247 @@ class BillSharingPyee(models.Model):
     status = models.CharField(
         choices=Status.choices, max_length=50, default=Status.PENDING
     )
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ("-date_created",)
+
+    def __str__(self):
+        return str(self.user)
+
+
+class Card(models.Model):
+    class CardType(models.TextChoices):
+        DEBIT = "DEBIT CARD"
+        CREDIT = "CREDIT CARD"
+
+    class VirtualCardType(models.TextChoices):
+        GIFT_CARD = "GIFT CARD"
+        SHOPPING_CARD = "SHOPPING CARD"
+
+    class CardScheme(models.TextChoices):
+        VISA = "VISA"
+        MASTERCARD = "MASTERCARD"
+
+    class CardForm(models.TextChoices):
+        PHYSICAL = "PHYSICAL CARD"
+        VIRTUAL = "VIRTUAL CARD"
+
+    class CardStatus(models.TextChoices):
+        ACTIVE = "ACTIVE"
+        BLOCKED = "BLOCKED"
+        FROZEN = "FROZEN"
+        EXPIRED = "EXPIRED"
+
+    card_scheme = models.CharField(
+        choices=CardScheme.choices,
+        max_length=50,
+        default=CardScheme.VISA,
+    )
+    card_type = models.CharField(
+        choices=CardType.choices,
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+    card_form = models.CharField(
+        choices=CardForm.choices,
+        max_length=50,
+    )
+
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="cards",
+    )
+
+    card_number = CardNumberField(_("card number"))
+    card_expiry = CardExpiryField(_("expiration date"))
+    card_code = SecurityCodeField(_("security code"))
+    currency = models.CharField(max_length=50, null=True, blank=True)
+
+    virtual_card_type = models.CharField(
+        choices=VirtualCardType.choices,
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+    card_status = models.CharField(
+        choices=CardStatus.choices, default=CardStatus.ACTIVE, max_length=50
+    )
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ("-date_created",)
+
+    def __str__(self):
+        return str(self.card_number)
+
+
+class CardRequest(models.Model):
+    class CardType(models.TextChoices):
+        DEBIT = "DEBIT CARD"
+        CREDIT = "CREDIT CARD"
+
+    class DeliveryMethod(models.TextChoices):
+        BRANCH_PICKUP = "Branch PickUp"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING"
+        PROCESSING = "PROCESSING"
+        REJECTED = "REJECTED"
+
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="card_requests",
+    )
+    source_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.CASCADE,
+        related_name="card_requests",
+    )
+    card_type = models.CharField(
+        choices=CardType.choices,
+        max_length=100,
+    )
+    delivery_method = models.CharField(
+        choices=DeliveryMethod.choices,
+        max_length=100,
+    )
+    pick_up_branch = models.ForeignKey(
+        data_tables.BankBranch,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="card_requests",
+    )
+
+    comments = models.TextField(null=True, blank=True)
+    status = models.CharField(
+        choices=Status.choices,
+        max_length=50,
+        default=Status.PENDING,
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ("-date_created",)
+
+    def __str__(self):
+        return str(self.user)
+
+
+class CardManagement(models.Model):
+    class ManagementType(models.TextChoices):
+        RENEW_CARD = "RENEW CARD"
+        REPLACE_CARD = "REPLACE CARD"
+        BLOCK_CARD = "BLOCK CARD"
+        FREEZE_CARD = "FREEZE CARD"
+        UNFREEZE_CARD = "UNFREEZE CARD"
+
+    class DeliveryMethod(models.TextChoices):
+        BRANCH_PICKUP = "Branch PickUp"
+
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="card_managements",
+    )
+    management_type = models.CharField(
+        choices=ManagementType.choices,
+        max_length=100,
+    )
+    card = models.ForeignKey(
+        Card,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="card_managements",
+    )
+    reason = models.TextField()
+    through_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    delivery_method = models.CharField(
+        choices=DeliveryMethod.choices,
+        max_length=100,
+        null=True,
+        blank=True,
+    )
+    pick_up_branch = models.ForeignKey(
+        data_tables.BankBranch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="card_management",
+    )
+    comments = models.TextField(null=True, blank=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ("-date_created",)
+
+    def __str__(self):
+        return str(self.user)
+
+
+class TravelNotice(models.Model):
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="travel_notice",
+    )
+    departure_date = models.DateField()
+    return_date = models.DateField()
+    destination_country = models.CharField(max_length=100)
+
+    source_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.CASCADE,
+        related_name="travel_notices",
+    )
+    card = models.ForeignKey(
+        Card,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="travel_notices",
+    )
+    alternative_phone = PhoneNumberField(null=True, blank=True)
+
     date_created = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
     uuid = models.UUIDField(
