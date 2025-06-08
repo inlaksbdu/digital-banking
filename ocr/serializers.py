@@ -4,6 +4,8 @@ from datetime import date
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from .models import IdCard, OnboardingStage
 from .choices import DocumentTypeChoices
+from .services.aws import aws_service
+from loguru import logger
 
 
 class IdCardFieldSerializer(serializers.Serializer):
@@ -17,6 +19,12 @@ class IdCardSerializer(serializers.ModelSerializer):
     age = serializers.ReadOnlyField()
     expired = serializers.ReadOnlyField()
     low_confidence_fields = serializers.ReadOnlyField()
+
+    front_image = serializers.SerializerMethodField()
+    back_image = serializers.SerializerMethodField()
+    self_image = serializers.SerializerMethodField()
+    selfie_video = serializers.SerializerMethodField()
+    additional_images = serializers.SerializerMethodField()
 
     class Meta:
         model = IdCard
@@ -47,6 +55,7 @@ class IdCardSerializer(serializers.ModelSerializer):
             "front_image",
             "back_image",
             "self_image",
+            "selfie_video",
             "additional_images",
             "created_at",
             "updated_at",
@@ -69,7 +78,93 @@ class IdCardSerializer(serializers.ModelSerializer):
             "verified",
             "review_score",
             "reject_score",
+            "front_image",
+            "back_image",
+            "self_image",
+            "selfie_video",
+            "additional_images",
         ]
+
+    def _get_presigned_url_for_field(self, obj, field_name):
+        """Helper method to generate presigned URL for image fields"""
+        field_value = getattr(obj, field_name, None)
+        if not field_value:
+            return None
+
+        # Handle string values (S3 URLs or file paths)
+        if isinstance(field_value, str):
+            if field_value.startswith("s3://") or field_value.startswith("id_cards/"):
+                try:
+                    if field_value.startswith("s3://"):
+                        key = aws_service.get_s3_key(field_value)
+                    else:
+                        key = field_value
+
+                    presigned_url = aws_service.generate_presigned_url(key)
+                    return presigned_url if presigned_url else field_value
+                except Exception as e:
+                    logger.error(
+                        f"Error generating presigned URL for {field_name}: {e}"
+                    )
+                    return field_value
+            return field_value
+
+        # Handle file objects
+        if hasattr(field_value, "name") and field_value.name:
+            try:
+                key = (
+                    aws_service.get_s3_key(field_value.name)
+                    if field_value.name.startswith("s3://")
+                    else field_value.name
+                )
+                presigned_url = aws_service.generate_presigned_url(key)
+                return presigned_url if presigned_url else field_value.url
+            except Exception as e:
+                logger.error(f"Error generating presigned URL for {field_name}: {e}")
+                return field_value.url if hasattr(field_value, "url") else None
+
+        return None
+
+    def get_front_image(self, obj):
+        return self._get_presigned_url_for_field(obj, "front_image")
+
+    def get_back_image(self, obj):
+        return self._get_presigned_url_for_field(obj, "back_image")
+
+    def get_self_image(self, obj):
+        return self._get_presigned_url_for_field(obj, "self_image")
+
+    def get_selfie_video(self, obj):
+        return self._get_presigned_url_for_field(obj, "selfie_video")
+
+    def get_additional_images(self, obj):
+        """Handle additional_images which is a JSON array of URLs"""
+        additional_images = obj.additional_images or []
+        if not additional_images or not isinstance(additional_images, list):
+            return []
+
+        presigned_urls = []
+        for url in additional_images:
+            if isinstance(url, str) and (
+                url.startswith("s3://") or url.startswith("id_cards/")
+            ):
+                try:
+                    if url.startswith("s3://"):
+                        key = aws_service.get_s3_key(url)
+                    else:
+                        key = url
+
+                    presigned_url = aws_service.generate_presigned_url(key)
+                    presigned_urls.append(presigned_url if presigned_url else url)
+                except Exception as e:
+                    logger.error(
+                        f"Error generating presigned URL for additional image {url}: {e}"
+                    )
+                    presigned_urls.append(url)
+            else:
+                presigned_urls.append(url)
+
+        return presigned_urls
 
 
 class IdCardCreateSerializer(serializers.Serializer):

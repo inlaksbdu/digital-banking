@@ -1,10 +1,11 @@
-# Register your models here.
-
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .models import IdCard, OnboardingStage
 from .choices import DecisionChoices
+from django.db import models
+from django.forms.widgets import ClearableFileInput
+from .services.aws import aws_service
 
 
 @admin.register(OnboardingStage)
@@ -19,6 +20,12 @@ class OnboardingStageAdmin(admin.ModelAdmin):
         return obj.get_stage_display()
 
     stage_display.short_description = "Stage"  # type: ignore
+
+
+class CustomClearableFileInput(ClearableFileInput):
+    initial_text = ""
+    input_text = "No file chosen"
+    clear_checkbox_label = "Clear"
 
 
 @admin.register(IdCard)
@@ -58,6 +65,24 @@ class IdCardAdmin(admin.ModelAdmin):
         "low_confidence_fields_display",
         "document_number_text",
         "id_number_text",
+        "front_image_preview",
+        "back_image_preview",
+        "self_image_preview",
+        "additional_images_preview",
+        "first_name_display",
+        "middle_name_display",
+        "last_name_display",
+        "date_of_birth_display",
+        "gender_display",
+        "id_number_display",
+        "document_number_display",
+        "date_of_issue_display",
+        "date_of_expiry_display",
+        "country_display",
+        "state_display",
+        "nationality_display",
+        "mrz_display",
+        "selfie_video_preview",
     ]
 
     fieldsets = (
@@ -78,19 +103,19 @@ class IdCardAdmin(admin.ModelAdmin):
             "Document Data",
             {
                 "fields": (
-                    "first_name",
-                    "middle_name",
-                    "last_name",
-                    "date_of_birth",
-                    "gender",
-                    "id_number",
-                    "document_number",
-                    "date_of_issue",
-                    "date_of_expiry",
-                    "country",
-                    "state",
-                    "nationality",
-                    "mrz",
+                    "first_name_display",
+                    "middle_name_display",
+                    "last_name_display",
+                    "date_of_birth_display",
+                    "gender_display",
+                    "id_number_display",
+                    "document_number_display",
+                    "date_of_issue_display",
+                    "date_of_expiry_display",
+                    "country_display",
+                    "state_display",
+                    "nationality_display",
+                    "mrz_display",
                 ),
                 "classes": ("collapse",),
             },
@@ -111,9 +136,15 @@ class IdCardAdmin(admin.ModelAdmin):
             "Images",
             {
                 "fields": (
+                    "front_image_preview",
                     "front_image",
+                    "back_image_preview",
                     "back_image",
+                    "self_image_preview",
                     "self_image",
+                    "selfie_video_preview",
+                    "selfie_video",
+                    "additional_images_preview",
                     "additional_images",
                 ),
                 "classes": ("collapse",),
@@ -136,6 +167,10 @@ class IdCardAdmin(admin.ModelAdmin):
     )
 
     ordering = ["-created_at"]
+    formfield_overrides = {
+        models.ImageField: {"widget": CustomClearableFileInput},
+        models.FileField: {"widget": CustomClearableFileInput},
+    }
 
     def full_name_display(self, obj):
         return obj.full_name or "N/A"
@@ -150,7 +185,9 @@ class IdCardAdmin(admin.ModelAdmin):
             color = "orange"
         else:
             color = "red"
-        return format_html('<span style="color: {};">{:.2%}</span>', color, score)
+        # Pre-format the percentage string to avoid formatting SafeString with '%' spec
+        percent = f"{score:.2%}"
+        return format_html('<span style="color: {};">{}</span>', color, percent)
 
     confidence_score_display.short_description = "Confidence Score"  # type: ignore
 
@@ -215,3 +252,112 @@ class IdCardAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} ID cards rejected.")
 
     reject_decision.short_description = "Reject selected ID cards"  # type: ignore
+
+    def front_image_preview(self, obj):
+        name = obj.front_image.name if obj.front_image else None
+        if not name:
+            return "No image"
+        # Determine S3 key
+        key = aws_service.get_s3_key(name) if name.startswith("s3://") else name
+        try:
+            url = aws_service.generate_presigned_url(key)
+        except Exception:
+            url = obj.front_image.url
+        return format_html('<img src="{}" style="max-height:200px;" />', url)
+
+    front_image_preview.short_description = "Front Image Preview"  # type: ignore
+
+    def back_image_preview(self, obj):
+        name = obj.back_image.name if obj.back_image else None
+        if not name:
+            return "No image"
+        key = aws_service.get_s3_key(name) if name.startswith("s3://") else name
+        try:
+            url = aws_service.generate_presigned_url(key)
+        except Exception:
+            url = obj.back_image.url
+        return format_html('<img src="{}" style="max-height:200px;" />', url)
+
+    back_image_preview.short_description = "Back Image Preview"  # type: ignore
+
+    def self_image_preview(self, obj):
+        name = obj.self_image.name if obj.self_image else None
+        if not name:
+            return "No image"
+        key = aws_service.get_s3_key(name) if name.startswith("s3://") else name
+        try:
+            url = aws_service.generate_presigned_url(key)
+        except Exception:
+            url = obj.self_image.url
+        return format_html('<img src="{}" style="max-height:200px;" />', url)
+
+    self_image_preview.short_description = "Self Image Preview"  # type: ignore
+
+    def additional_images_preview(self, obj):
+        imgs = obj.additional_images or []
+        if not imgs:
+            return "No additional images"
+        html = ""
+        for img_url in imgs:
+            if img_url.startswith("s3://"):
+                key = aws_service.get_s3_key(img_url)
+                try:
+                    url = aws_service.generate_presigned_url(key)
+                except Exception:
+                    url = img_url
+            else:
+                url = img_url
+            html += f'<img src="{url}" style="max-height:200px;margin:4px;" />'
+        return format_html(html)
+
+    additional_images_preview.short_description = "Additional Images Preview"  # type: ignore
+
+    def selfie_video_preview(self, obj):
+        name = obj.selfie_video.name if obj.selfie_video else None
+        if not name:
+            return "No video"
+        key = aws_service.get_s3_key(name) if name.startswith("s3://") else name
+        try:
+            url = aws_service.generate_presigned_url(key)
+        except Exception:
+            url = obj.selfie_video.url
+        return format_html(
+            '<video src="{}" controls style="max-height:200px;" /></video>', url
+        )
+
+    selfie_video_preview.short_description = "Selfie Video Preview"  # type: ignore
+
+    def _json_display(self, obj, field):
+        data = getattr(obj, field) or {}
+        content = data.get("content", "")
+        conf = data.get("confidence")
+        return f"{content} ({conf:.2%})" if conf is not None else content
+
+    first_name_display = lambda self, obj: self._json_display(obj, "first_name")  # noqa: E731
+    first_name_display.short_description = "First name"  # type: ignore
+    middle_name_display = lambda self, obj: self._json_display(obj, "middle_name")  # noqa: E731
+    middle_name_display.short_description = "Middle name"  # type: ignore
+    last_name_display = lambda self, obj: self._json_display(obj, "last_name")  # noqa: E731
+    last_name_display.short_description = "Last name"  # type: ignore
+    date_of_birth_display = lambda self, obj: self._json_display(obj, "date_of_birth")  # noqa: E731
+    date_of_birth_display.short_description = "Date of birth"  # type: ignore
+    gender_display = lambda self, obj: self._json_display(obj, "gender")  # noqa: E731
+    gender_display.short_description = "Gender"  # type: ignore
+    id_number_display = lambda self, obj: self._json_display(obj, "id_number")  # noqa: E731
+    id_number_display.short_description = "ID number"  # type: ignore
+    document_number_display = lambda self, obj: self._json_display(  # noqa: E731
+        obj, "document_number"
+    )  
+    document_number_display.short_description = "Document number"  # type: ignore
+    date_of_issue_display = lambda self, obj: self._json_display(obj, "date_of_issue")  # noqa: E731
+    date_of_issue_display.short_description = "Date of issue"  # type: ignore
+    date_of_expiry_display = lambda self, obj: self._json_display(obj, "date_of_expiry")  # noqa: E731
+    date_of_expiry_display.short_description = "Date of expiry"  # type: ignore
+    country_display = lambda self, obj: self._json_display(obj, "country")  # noqa: E731
+    country_display.short_description = "Country"  # type: ignore
+    state_display = lambda self, obj: self._json_display(obj, "state")  # noqa: E731
+    state_display.short_description = "State"  # type: ignore
+    nationality_display = lambda self, obj: self._json_display(obj, "nationality")  # noqa: E731
+    nationality_display.short_description = "Nationality"  # type: ignore
+    mrz_display = lambda self, obj: self._json_display(obj, "mrz")  # noqa: E731
+    mrz_display.short_description = "MRZ"  # type: ignore

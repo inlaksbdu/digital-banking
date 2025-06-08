@@ -1,11 +1,11 @@
 import django_filters
+from django.db.models import Case, FloatField, When
+from django.db.models.functions import Cast, Coalesce
 from .models import IdCard
 from .choices import DocumentTypeChoices, DecisionChoices
 
 
 class IdCardFilter(django_filters.FilterSet):
-    """Filter for ID cards with custom confidence score filtering"""
-
     document_type = django_filters.ChoiceFilter(choices=DocumentTypeChoices.choices)
     decision = django_filters.ChoiceFilter(choices=DecisionChoices.choices)
     verified = django_filters.BooleanFilter()
@@ -34,18 +34,55 @@ class IdCardFilter(django_filters.FilterSet):
             "created_before",
         ]
 
+    def _get_confidence_annotation(self):
+        confidence_fields = [
+            "first_name__confidence",
+            "middle_name__confidence",
+            "last_name__confidence",
+            "date_of_birth__confidence",
+            "gender__confidence",
+            "id_number__confidence",
+            "document_number__confidence",
+            "date_of_issue__confidence",
+            "date_of_expiry__confidence",
+            "country__confidence",
+            "state__confidence",
+            "nationality__confidence",
+            "mrz__confidence",
+        ]
+
+        confidence_cases = []
+        for field in confidence_fields:
+            confidence_cases.append(
+                Case(
+                    When(**{f"{field}__isnull": False}, then=Cast(field, FloatField())),
+                    default=0.0,
+                    output_field=FloatField(),
+                )
+            )
+        
+        return Coalesce(
+            Case(
+                When(
+                    **{f"{confidence_fields[0]}__isnull": False},
+                    then=sum(confidence_cases) / len(confidence_cases),
+                ),
+                default=0.0,
+                output_field=FloatField(),
+            ),
+            0.0,
+        )
+
     def filter_min_confidence(self, queryset, name, value):
-        """Filter by minimum confidence score"""
         if value is not None:
-            # Since confidence_score is a property, we need to filter in Python
-            # For better performance, consider adding a database field
-            filtered_ids = [obj.id for obj in queryset if obj.confidence_score >= value]
-            return queryset.filter(id__in=filtered_ids)
+            if 'calculated_confidence' not in queryset.query.annotations:
+                queryset = queryset.annotate(calculated_confidence=self._get_confidence_annotation())
+            return queryset.filter(calculated_confidence__gte=value)
         return queryset
 
     def filter_max_confidence(self, queryset, name, value):
-        """Filter by maximum confidence score"""
         if value is not None:
-            filtered_ids = [obj.id for obj in queryset if obj.confidence_score <= value]
-            return queryset.filter(id__in=filtered_ids)
+            if 'calculated_confidence' not in queryset.query.annotations:
+                queryset = queryset.annotate(calculated_confidence=self._get_confidence_annotation())
+            return queryset.filter(calculated_confidence__lte=value)
         return queryset
