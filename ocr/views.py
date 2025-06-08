@@ -147,7 +147,6 @@ class DocumentOCRView(generics.CreateAPIView):
 
         return {
             "status": "success",
-            "data": id_card,
             "confidence_score": id_card.confidence_score,
             "decision": id_card.decision,
             "warnings": [
