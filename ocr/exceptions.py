@@ -1,30 +1,37 @@
-class CardVerificationError(Exception):
+from config.exceptions import BaseException
+
+
+class CardVerificationError(BaseException):
     pass
 
 
-class UnsupportedDocumentTypeError(Exception):
+class UnsupportedDocumentTypeError(BaseException):
     pass
 
 
-class CardAlreadyExistsError(Exception):
+class CardAlreadyExistsError(BaseException):
     pass
 
 
-class CardExpiredError(Exception):
+class CardExpiredError(BaseException):
     pass
 
 
-class CardNotVerifiedError(Exception):
+class CardNotVerifiedError(BaseException):
     pass
 
 
-class FileTooLargeError(Exception):
+class FileTooLargeError(BaseException):
     pass
 
 
-class FileTooSmallError(Exception):
+class FileTooSmallError(BaseException):
     pass
 
 
-class InvalidFileTypeError(Exception):
+class InvalidFileTypeError(BaseException):
+    pass
+
+
+class DocumentVerificationError(BaseException):
     pass

@@ -60,7 +60,7 @@ class IdCardFilter(django_filters.FilterSet):
                     output_field=FloatField(),
                 )
             )
-        
+
         return Coalesce(
             Case(
                 When(
@@ -75,14 +75,18 @@ class IdCardFilter(django_filters.FilterSet):
 
     def filter_min_confidence(self, queryset, name, value):
         if value is not None:
-            if 'calculated_confidence' not in queryset.query.annotations:
-                queryset = queryset.annotate(calculated_confidence=self._get_confidence_annotation())
+            if "calculated_confidence" not in queryset.query.annotations:
+                queryset = queryset.annotate(
+                    calculated_confidence=self._get_confidence_annotation()
+                )
             return queryset.filter(calculated_confidence__gte=value)
         return queryset
 
     def filter_max_confidence(self, queryset, name, value):
         if value is not None:
-            if 'calculated_confidence' not in queryset.query.annotations:
-                queryset = queryset.annotate(calculated_confidence=self._get_confidence_annotation())
+            if "calculated_confidence" not in queryset.query.annotations:
+                queryset = queryset.annotate(
+                    calculated_confidence=self._get_confidence_annotation()
+                )
             return queryset.filter(calculated_confidence__lte=value)
         return queryset
