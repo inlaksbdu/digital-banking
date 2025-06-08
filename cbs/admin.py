@@ -146,3 +146,62 @@ class LoanRequestAdmin(ModelAdmin):
         "date_created",
     )
     list_filter = ["status"]
+
+
+@admin.register(models.AppointmentBooking)
+class AppointmentBookingAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "service_type",
+        "booking_type",
+        "status",
+        "branch",
+        "date_created",
+    )
+    list_filter = ["status", "booking_type", "service_type"]
+
+
+@admin.register(models.ExpenseLimit)
+class ExpenseLimitAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "account",
+        "limit_type",
+        "limit_amount",
+        "amount_spent",
+        "start_date",
+        "end_date",
+        "status",
+    )
+    list_filter = ["limit_type", "status"]
+
+
+@admin.register(models.CardlessWithdrawal)
+class CardlessWithdrawalAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "source_account",
+        "amount",
+        "withdrawal_party",
+        "token_type",
+        "valid_through",
+        "token_redeemed",
+        "token_expired",
+        "date_created",
+    )
+    list_filter = ["withdrawal_party", "token_type", "token_redeemed", "token_expired"]
+
+
+@admin.register(models.EmailIndemnity)
+class EmailIndemnityAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "source_account",
+        "primary_email",
+        "phone_number",
+        "date_created",
+    )

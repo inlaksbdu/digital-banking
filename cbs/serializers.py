@@ -343,3 +343,119 @@ class LoanRequestCreateSerializer(serializers.ModelSerializer):
             "duration",
             "files",
         )
+
+
+class AppointmentSeriailzer(serializers.ModelSerializer):
+    class Meta:
+        model = models.AppointmentBooking
+        fields = (
+            "id",
+            "user",
+            "service_type",
+            "source_account",
+            "source_account_name",
+            "amount",
+            "currency",
+            "cheque_number",
+            "name_of_cheque_issuer",
+            "issuing_bank",
+            "booking_type",
+            "fullname",
+            "id_number",
+            "phone_number",
+            "branch",
+            "date",
+            "time",
+            "booking_code",
+            "status",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "booking_code",
+            "application_id",
+            "status",
+        )
+
+
+class ExpenseLimitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ExpenseLimit
+        fields = (
+            "id",
+            "limit_type",
+            "user",
+            "account",
+            "category",
+            "limit_amount",
+            "amount_spent",
+            "status",
+            "start_date",
+            "end_date",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "amount_spent",
+            "status",
+        )
+
+
+class CardlessWithdrawalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CardlessWithdrawal
+        fields = (
+            "id",
+            "user",
+            "source_account",
+            "token_type",
+            "token",
+            "token_redeemed",
+            "token_expired",
+            "amount",
+            "valid_through",
+            "withdrawal_party",
+            "recipient_phone_number",
+            "recipient_name",
+            "notes",
+            "date_created",
+        )
+        read_only_fields = (
+            "user",
+            "token",
+            "token_redeemed",
+            "token_expired",
+        )
+
+
+class ValidateCardlessWithdrawalTokenSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+class EmailIndemnitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.EmailIndemnity
+        fields = (
+            "id",
+            "user",
+            "source_account",
+            "primary_email",
+            "secondary_email",
+            "phone_number",
+            "airtime",
+            "data",
+            "bill_payment",
+            "international_transfer",
+            "account_to_wallet",
+            "other_bank_transfer",
+            "same_bank_transfer",
+            "own_account_transfer",
+            "merchant_payment",
+            "date_created",
+            "last_updated",
+        )
+        read_only_fields = (
+            "user",
+            "date_created",
+            "last_updated",
+        )

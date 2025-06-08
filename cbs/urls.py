@@ -1,5 +1,6 @@
 from rest_framework.routers import DefaultRouter
 from . import views
+from django.urls import path
 
 
 app_name = "cbs"
@@ -18,6 +19,26 @@ router.register(
     "loan-categories", views.LoanCategoryViewset, basename="loan-categories"
 )
 router.register("loan-requests", views.LoanRequestViewset, basename="loan-requests")
-urlpatterns = []
+router.register(
+    "appointment-booking",
+    views.AppointmentBookingViewset,
+    basename="appointment-booking",
+)
+router.register("expense-limit", views.ExpenseLimitViewset, basename="expense-limit")
+router.register(
+    "cardless-withdrawal",
+    views.CardlessWithdrawalViewset,
+    basename="cardless-withdrawal",
+)
+router.register(
+    "email-indemnity", views.EmailIndemnityViewset, basename="email-indemnity"
+)
+urlpatterns = [
+    path(
+        "fx-rates/",
+        views.ForexViewset.as_view(),
+        name="fx-rates",
+    ),
+]
 
 urlpatterns += router.urls
