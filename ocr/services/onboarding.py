@@ -1,17 +1,17 @@
-from typing import Any, List, Dict, Literal, Optional
 from datetime import date, datetime
-from django.contrib.auth import get_user_model
-from django.db import transaction
-from django.core.files.uploadedfile import InMemoryUploadedFile
-from loguru import logger
+from typing import Any, Dict, List, Literal, Optional
 
-from ..models import IdCard
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.db import transaction
+
 from ..choices import DocumentTypeChoices
 from ..exceptions import (
     CardAlreadyExistsError,
-    UnsupportedDocumentTypeError,
     CardVerificationError,
+    UnsupportedDocumentTypeError,
 )
+from ..models import IdCard
 
 User = get_user_model()
 
@@ -112,7 +112,7 @@ class OnboardingService:
                 front_image=s3_urls.get("front"),
                 back_image=s3_urls.get("back"),
                 self_image=s3_urls.get("selfie"),
-                additional_images=list(s3_urls.values()) if s3_urls else [],
+                # additional_images=list(s3_urls.values()) if s3_urls else [],
             )
 
             return id_card

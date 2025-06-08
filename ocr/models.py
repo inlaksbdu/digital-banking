@@ -1,15 +1,17 @@
 import uuid
 from datetime import date, datetime
-from typing import Optional
-from django.db import models
+from typing import Any, Dict, List, Optional
+
+from botocore.exceptions import ClientError
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
-from django.conf import settings
-import boto3
-from botocore.exceptions import ClientError
 from loguru import logger
-from .choices import StageChoices, DocumentTypeChoices, DecisionChoices
+
+from .choices import DecisionChoices, DocumentTypeChoices, StageChoices
+from .services.aws import aws_service
 
 
 class OnboardingStage(models.Model):
@@ -165,6 +167,7 @@ class IdCard(models.Model):
                     except ValueError:
                         continue
                 raise ValueError(f"Unable to parse date: {date_str}")
+        
 
     @property
     def age(self) -> Optional[int]:
@@ -266,15 +269,80 @@ class IdCard(models.Model):
         field_value = getattr(self, field_name, None)
         if field_value and isinstance(field_value, dict):
             return field_value.get("content")
-        return None
+        return field_value
 
     def get_field_confidence(self, field_name: str) -> Optional[float]:
-        """Get confidence score for a specific field"""
         field_value = getattr(self, field_name, None)
         if field_value and isinstance(field_value, dict):
             return field_value.get("confidence")
         return None
 
+    def to_dict(self, include: List[str] = ["*"], exclude: List[str]|None = None, show_field_confidence: bool = False) -> Dict[str, Any]:
+        data = {}
+        if "*" in include:
+            include = [field.name for field in self._meta.fields]
+        if exclude:
+            include = [field for field in include if field not in exclude]
+        
+        image_fields = ['front_image', 'back_image', 'self_image', 'selfie_video']
+        json_array_image_fields = ['additional_images']
+        
+        for field in include:
+            try:
+                value = self.get_field_value(field)
+                
+                if field in image_fields and value:
+                    if isinstance(value, str) and (value.startswith('s3://') or value.startswith('id_cards/')):
+                        try:
+                            if value.startswith('s3://'):
+                                key = aws_service.get_s3_key(value)
+                            else:
+                                key = value
+                            
+                            presigned_url = aws_service.generate_presigned_url(key)
+                            value = presigned_url if presigned_url else value
+                        except Exception as e:
+                            logger.error(f"Error generating presigned URL for {field}: {e}")
+                
+                elif field in json_array_image_fields and value:
+                    if isinstance(value, list):
+                        presigned_urls = []
+                        for url in value:
+                            if isinstance(url, str) and (url.startswith('s3://') or url.startswith('id_cards/')):
+                                try:
+                                    if url.startswith('s3://'):
+                                        key = aws_service.get_s3_key(url)
+                                    else:
+                                        key = url
+                                    
+                                    presigned_url = aws_service.generate_presigned_url(key)
+                                    presigned_urls.append(presigned_url if presigned_url else url)
+                                except Exception as e:
+                                    logger.error(f"Error generating presigned URL for {url} in {field}: {e}")
+                                    presigned_urls.append(url)
+                            else:
+                                presigned_urls.append(url)
+                        value = presigned_urls
+                
+                if show_field_confidence:
+                    confidence = self.get_field_confidence(field)
+                    if confidence is not None:
+                        data[field] = {
+                            "content": value,
+                            "confidence": confidence,
+                        }
+                    else:
+                        data[field] = value
+                else:
+                    data[field] = value
+                    
+            except AttributeError:
+                continue
+            except Exception as e:
+                logger.error(f"Error processing field {field}: {e}")
+                continue
+                
+        return data
 
 @receiver(post_delete, sender=IdCard)
 def delete_id_card_files_from_s3(sender, instance, **kwargs):
@@ -285,36 +353,24 @@ def delete_id_card_files_from_s3(sender, instance, **kwargs):
         return
 
     try:
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_S3_REGION_NAME,
-        )
-
-        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-
         if instance.front_image:
             try:
-                s3_client.delete_object(
-                    Bucket=bucket_name, Key=instance.front_image.name
-                )
+                key = aws_service.get_s3_key(instance.front_image.name)
+                aws_service.delete_from_s3(key)
             except ClientError as e:
                 logger.error(f"Error deleting front image from S3: {e}")
 
         if instance.back_image:
             try:
-                s3_client.delete_object(
-                    Bucket=bucket_name, Key=instance.back_image.name
-                )
+                key = aws_service.get_s3_key(instance.back_image.name)
+                aws_service.delete_from_s3(key)
             except ClientError as e:
                 logger.error(f"Error deleting back image from S3: {e}")
 
         if instance.self_image:
             try:
-                s3_client.delete_object(
-                    Bucket=bucket_name, Key=instance.self_image.name
-                )
+                key = aws_service.get_s3_key(instance.self_image.name)
+                aws_service.delete_from_s3(key)
             except ClientError as e:
                 logger.error(f"Error deleting self image from S3: {e}")
 

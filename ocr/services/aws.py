@@ -3,6 +3,7 @@ from datetime import datetime
 import hashlib
 import io
 from typing import Any, Literal, Optional, Dict
+from urllib.parse import urlparse
 import uuid
 from typing_extensions import deprecated
 import boto3
@@ -46,10 +47,9 @@ class AWSService:
         s3_key = f"documents/{doc_id}_{timestamp}.jpg"
         return s3_key
 
-    def delete_from_s3(self, key: str, bucket_name: Optional[str] = None) -> bool:
-        bucket = bucket_name or self.bucket_name
+    def delete_from_s3(self, key: str) -> bool:
         try:
-            self.s3.delete_object(Bucket=bucket, Key=key)
+            self.s3.delete_object(Bucket=self.bucket_name, Key=key)
             logger.success(f"Deleted image from S3: {key}")
             return True
         except ClientError as e:
@@ -58,12 +58,11 @@ class AWSService:
             raise ClientError({"Error": {"Message": error_msg}}, "DeleteObject")
 
     def get_image_url_if_exists(
-        self, key: str, bucket_name: Optional[str] = None
+        self, key: str
     ) -> Optional[str]:
-        bucket = bucket_name or self.bucket_name
         try:
-            self.s3.head_object(Bucket=bucket, Key=key)
-            return f"s3://{bucket}/{key}"
+            self.s3.head_object(Bucket=self.bucket_name, Key=key)
+            return f"s3://{self.bucket_name}/{key}"
         except ClientError as e:
             if e.response["Error"]["Code"] == "404":
                 return None
@@ -95,7 +94,6 @@ class AWSService:
         Returns:
             Dictionary of {file_type: s3_url} for successfully uploaded files
         """
-        bucket = bucket_name or self.bucket_name
         uploaded_urls = {}
 
         valid_files = {k: v for k, v in files.items() if v is not None}
@@ -115,14 +113,14 @@ class AWSService:
                 file_ext = self._get_file_extension(file_obj)
                 key = f"{file_category}/{user_id}/{file_type}/{hash_md5}.{file_ext}"
 
-                existing_url = self.get_image_url_if_exists(key, bucket)
+                existing_url = self.get_image_url_if_exists(key)
                 if existing_url:
                     logger.info(f"File already exists in S3: {key}")
                     return (file_type, existing_url, None)
 
                 self.s3.upload_fileobj(
                     io.BytesIO(content),
-                    Bucket=bucket,
+                    Bucket=self.bucket_name,
                     Key=key,
                     ExtraArgs={
                         "ContentType": file_obj.content_type
@@ -139,8 +137,8 @@ class AWSService:
                     },
                 )
 
-                s3_path = f"s3://{bucket}/{key}"
-                logger.info(f"Successfully uploaded {file_type} to S3: {key}")
+                s3_path = f"s3://{self.bucket_name}/{key}"
+                logger.success(f"Successfully uploaded {file_type} to S3: {key}")
                 return (file_type, s3_path, None)
 
             except Exception as e:
@@ -238,24 +236,28 @@ class AWSService:
         )
 
     def generate_presigned_url(
-        self, key: str, expiration: int = 3600, bucket_name: Optional[str] = None
+        self, key: str, expiration: int = 3600
     ) -> str:
-        bucket = bucket_name or self.bucket_name
-        try:
-            url = self.s3.generate_presigned_url(
-                "get_object",
-                Params={
-                    "Bucket": bucket,
-                    "Key": key,
-                    "ResponseContentDisposition": "inline",
-                },
-                ExpiresIn=expiration,
-            )
-            logger.info(f"Generated presigned URL for {key}")
-            return url
-        except ClientError as e:
-            logger.error(f"Error generating presigned URL: {str(e)}")
-            raise Exception(f"Error generating presigned URL: {str(e)}")
+        url = self.s3.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": self.bucket_name,
+                "Key": key,
+                "ResponseContentDisposition": "inline",
+            },
+            ExpiresIn=expiration,
+        )
+        return url
+
+    @staticmethod
+    def get_s3_key(s3_url: str) -> str:
+        parsed = urlparse(s3_url)
+        return parsed.path.lstrip('/')
+
+    @staticmethod
+    def get_s3_bucket(s3_url: str) -> str:
+        parsed = urlparse(s3_url)
+        return parsed.netloc
 
 
 aws_service = AWSService()
