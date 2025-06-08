@@ -33,6 +33,10 @@ router.register(
 router.register(
     "email-indemnity", views.EmailIndemnityViewset, basename="email-indemnity"
 )
+router.register("bill-sharing", views.BillSharingViewset, basename="bill-sharing")
+router.register(
+    "bill-sharing-payee", views.BillSharingPayeeViewset, basename="bill-sharing-payee"
+)
 urlpatterns = [
     path(
         "fx-rates/",

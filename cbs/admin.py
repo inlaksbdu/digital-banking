@@ -1,6 +1,6 @@
 from django.contrib import admin
 from . import models
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline
 
 
 @admin.register(models.BankAccount)
@@ -205,3 +205,24 @@ class EmailIndemnityAdmin(ModelAdmin):
         "phone_number",
         "date_created",
     )
+
+
+class BillSharingPayeeInline(TabularInline):
+    model = models.BillSharingPyee
+    fields = ["user", "amount", "status", "comments"]
+    extra = 0
+
+
+@admin.register(models.BillSharing)
+class BillSharingAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "title",
+        "initiator",
+        "merchant_number",
+        "merchant_name",
+        "bill_amount",
+        "paid_amount",
+        "date_created",
+    )
+    inlines = [BillSharingPayeeInline]

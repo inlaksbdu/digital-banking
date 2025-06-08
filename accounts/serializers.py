@@ -95,6 +95,19 @@ class UserSerializer(serializers.ModelSerializer):
         )
 
 
+class ShortUserInfoSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.ImageField(source="customer_profile.profile_picture")
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            "fullname",
+            "email",
+            "phone_number",
+            "profile_picture",
+        )
+
+
 class CustomLoginSerializer(LoginSerializer):
     """
     Custom Login serializer to overide default dj-rest-auth login
@@ -212,7 +225,7 @@ class CustomLoginSerializer(LoginSerializer):
         try:
             user.last_login_ip = self.get_client_ip(request)
             user.save()
-        except:
+        except Exception:
             pass
         cache.delete(f"login-attempt/{username}")
 

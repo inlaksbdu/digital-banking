@@ -943,3 +943,74 @@ class EmailIndemnity(models.Model):
 
     def __str__(self):
         return str(self.user)
+
+
+class BillSharing(models.Model):
+    title = models.CharField(max_length=150)
+    initiator = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="bill_sharing_initiated",
+    )
+    merchant_number = models.CharField(max_length=100)
+    merchant_name = models.CharField(max_length=200)
+    bill_amount = models.DecimalField(max_digits=19, decimal_places=2)
+    paid_amount = models.DecimalField(max_digits=19, decimal_places=2, default=0)
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ("-date_created",)
+
+    def __str__(self):
+        return str(self.initiator)
+
+
+class BillSharingPyee(models.Model):
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING"
+        PAID = "PAID"
+        REJECTED = "REJECTED"
+        FAILED = "FAILED"
+
+    bill_sharing = models.ForeignKey(
+        BillSharing,
+        on_delete=models.CASCADE,
+        related_name="bill_sharing_payees",
+    )
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="bill_sharing_payees",
+    )
+    amount = models.DecimalField(max_digits=19, decimal_places=2)
+
+    reference = models.CharField(max_length=100, null=True, blank=True)
+    comments = models.TextField(null=True, blank=True)
+    status = models.CharField(
+        choices=Status.choices, max_length=50, default=Status.PENDING
+    )
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ("-date_created",)
+
+    def __str__(self):
+        return str(self.user)

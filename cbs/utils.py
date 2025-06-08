@@ -81,3 +81,8 @@ def check_expense_limit(account_id, transaction_purpose, amount):
         return True
     print("== rerturning TRUEEEEE")
     return True
+
+
+def get_absolute_profile_picture_url(request, relative_url):
+    absolute_url = request.build_absolute_uri(relative_url)
+    return absolute_url

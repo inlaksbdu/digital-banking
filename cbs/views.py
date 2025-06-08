@@ -20,9 +20,17 @@ import requests
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.core.mail import EmailMessage
-from .utils import generate_pdf_from_html, encrypt_pdf, check_expense_limit
+from .utils import (
+    generate_pdf_from_html,
+    encrypt_pdf,
+    check_expense_limit,
+    get_absolute_profile_picture_url,
+)
 import os
 from rest_framework.views import APIView
+from django.db.models import Q
+from django.db import transaction
+from accounts.models import CustomUser
 
 # Create your views here.
 
@@ -965,5 +973,226 @@ class ForexViewset(APIView):
 
         return Response(
             data=exchange_rates,
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Bill Sharing"])
+class BillSharingViewset(ModelViewSet):
+    queryset = models.BillSharing.objects.all()
+    serializer_class = serializers.BillSharingSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post", "patch"]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return serializers.BillSharingCreateSerializer
+        return super().get_serializer_class()
+
+    def get_queryset(self):
+        return self.queryset.filter(
+            Q(initiator=self.request.user)
+            | Q(bill_sharing_payees__user=self.request.user)
+        ).distinct()
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        share_with = data.get("share_with", [])
+        serializer.validated_data.pop("share_with")
+        instance = serializer.save(initiator=self.request.user)
+
+        for share in share_with:
+            user_account = CustomUser.objects.get(id=share["user"])
+            models.BillSharingPyee.objects.create(
+                user=user_account,
+                bill_sharing=instance,
+                amount=share["amount"],
+            )
+        return instance
+
+    @action(
+        methods=["get"],
+        detail=True,
+        url_path="get-payees",
+        url_name="get-payees",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=None,
+    )
+    def get_payees(self, request: HttpRequest, pk):
+        instance = self.get_object()
+        return Response(
+            data=serializers.BillSharingPayeeSerializer(
+                instance.bill_sharing_payees.all(),
+                context={"request": request},
+                many=True,
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Bill Sharing"])
+class BillSharingPayeeViewset(ModelViewSet):
+    queryset = models.BillSharingPyee.objects.all()
+    serializer_class = serializers.BillSharingPayeeSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ["get", "post"]
+    filterset_fields = ["status"]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        return serializer.save(user=self.request.user)
+
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="make-payment",
+        url_name="make-payment",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.MakeBillSharingPaymentAccountSerializer,
+    )
+    def make_payment(self, request: HttpRequest, pk):
+        instance = self.get_object()
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        if instance.status == "PENDING":
+            # validate if payment is for current user
+            if instance.user != request.user:
+                raise exceptions.GeneralException(
+                    detail="Sorry, You are not authorized to perform this paymnet."
+                )
+
+            # validate account
+            account_number = data["account_number"]
+            if account_number.user != request.user:
+                raise exceptions.GeneralException(
+                    detail="Sorry, You are not authorized to perform this paymnet."
+                )
+
+            # MAKE PAYMENT TO CORE BANKING
+            payload = {
+                "debitAccountId": str(account_number.account_number),
+                "creditAccountId": str(instance.bill_sharing.merchant_number),
+                "debitAmount": str(instance.amount),
+                "debitCurrency": str(account_number.currency),
+                "transactionType": "AC",
+                "paymentDetails": str(instance.bill_sharing.title),
+                "channel": "",
+            }
+
+            url = f"{base_url}/party/creategtiFundsTransfer"
+            headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
+            response = requests.post(
+                url, headers=headers, json=json.dumps({"body": payload})
+            )
+            data = json.loads(response.text)
+
+            errorcode = ""
+
+            if response.status_code != 200:
+                if "error" in data:
+                    errorData = data["error"]
+                    error_detail = errorData["errorDetails"]
+                    errorcode = ""
+                    for error in error_detail:
+                        errorcode += f"{error['message']},  "
+
+                elif "override" in data:
+                    errorData = data["override"]
+                    error_detail = errorData["overrideDetails"]
+                    errorcode = ""
+                    for error in error_detail:
+                        errorcode += f"{error['description']},  "
+                else:
+                    errorcode = data
+            logger.info(" [FUNDS TRANSFER]: ", response.text)
+            instance.comments = errorcode
+            instance.reference = data["header"]["id"] if "id" in data["header"] else ""
+            instance.status = "PAID" if response.status_code == 200 else "FAILED"
+            instance.save()
+            instance.refresh_from_db()
+
+            # update bill sharing object
+            bill_sharing = instance.bill_sharing
+            bill_sharing.paid_amount += instance.amount
+            bill_sharing.save()
+
+        return Response(
+            data=serializers.BillSharingPayeeSerializer(
+                instance, context={"request": request}, many=False
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="reject-request",
+        url_name="reject-request",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.RejectBillSharingRequestSerializer,
+    )
+    def reject_request(self, request: HttpRequest, pk):
+        instance = self.get_object()
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        instance.status = "REJECTED"
+        instance.comments = data["reason"]
+        instance.save()
+        return Response(
+            data=serializers.BillSharingPayeeSerializer(
+                instance.bill_sharing_payees.all(),
+                context={"request": request},
+                many=True,
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        methods=["get"],
+        detail=False,
+        url_path="share-with",
+        url_name="share-with",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=None,
+    )
+    def share_with(self, request: HttpRequest):
+        user = request.user
+        my_beneficiaries = user.beneficiaries.filter(beneficiary_type="Same Bank")
+        data = []
+
+        for beneficiary in my_beneficiaries:
+            digital_account = models.BankAccount.objects.filter(
+                account_number=beneficiary.beneficiary_number
+            ).first()
+            if digital_account:
+                data.append(
+                    {
+                        "id": digital_account.user.id,
+                        "account_number": digital_account.account_number,
+                        "fullname": digital_account.user.fullname,
+                        "profile_picture": get_absolute_profile_picture_url(
+                            request,
+                            digital_account.user.customer_profile.profile_picture.url,
+                        ),
+                    }
+                )
+
+        if len(data) == 0:
+            message = "Consider adding a beneficiary registered with your bank and have access to internet or mobile banking."
+        else:
+            message = "Select a beneficiary to share with"
+
+        return Response(
+            data={
+                "status": True,
+                "message": message,
+                "data": data,
+            },
             status=status.HTTP_200_OK,
         )

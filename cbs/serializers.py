@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from . import models
 from django.http import HttpRequest
+from accounts.serializers import ShortUserInfoSerializer
+from helpers import exceptions
+from accounts.models import CustomUser
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
@@ -459,3 +462,132 @@ class EmailIndemnitySerializer(serializers.ModelSerializer):
             "date_created",
             "last_updated",
         )
+
+
+class BillSharingPayeeInfoSerializer(serializers.ModelSerializer):
+    user = ShortUserInfoSerializer(read_only=True)
+
+    class Meta:
+        model = models.BillSharingPyee
+        fields = (
+            "user",
+            "amount",
+            "status",
+            "comments",
+        )
+
+
+class BillSharingSerializer(serializers.ModelSerializer):
+    initiator = ShortUserInfoSerializer(read_only=True)
+
+    bill_sharing_payees = BillSharingPayeeInfoSerializer(read_only=True, many=True)
+
+    class Meta:
+        model = models.BillSharing
+        fields = (
+            "id",
+            "title",
+            "initiator",
+            "merchant_number",
+            "merchant_name",
+            "bill_amount",
+            "paid_amount",
+            "bill_sharing_payees",
+            "date_created",
+        )
+        read_only_fields = (
+            "date_created",
+            "paid_amount",
+        )
+
+
+class CreateBillSharingPayee(serializers.Serializer):
+    user = serializers.IntegerField()
+    amount = serializers.DecimalField(max_digits=19, decimal_places=2)
+
+
+class BillSharingCreateSerializer(serializers.ModelSerializer):
+    share_with = serializers.ListField(
+        child=CreateBillSharingPayee(),
+    )
+
+    def to_representation(self, instance):
+        return BillSharingSerializer(instance).data
+
+    class Meta:
+        model = models.BillSharing
+        fields = (
+            "title",
+            "merchant_number",
+            "merchant_name",
+            "bill_amount",
+            "share_with",
+        )
+
+    def validate(self, attrs):
+        share_with = attrs.get("share_with")
+
+        if len(share_with) < 2:
+            raise exceptions.GeneralException(
+                detail="Bill sharing must have at least 2 payees"
+            )
+
+        total_payee_amount = 0
+        for user in share_with:
+            user_id = user.get("user")
+            total_payee_amount += user.get("amount")
+            if not CustomUser.objects.filter(id=user_id).exists():
+                raise exceptions.GeneralException(
+                    detail=f"User with id {user_id} does not exist"
+                )
+
+        if total_payee_amount != attrs.get("bill_amount"):
+            raise exceptions.GeneralException(
+                detail="Total amount of payees must be equal to the bill amount"
+            )
+        return super().validate(attrs)
+
+
+class BillSharingShortInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.BillSharing
+        fields = (
+            "id",
+            "title",
+            "merchant_number",
+            "merchant_name",
+            "bill_amount",
+            "date_created",
+        )
+
+
+class BillSharingPayeeSerializer(serializers.ModelSerializer):
+    bill_sharing = BillSharingShortInfoSerializer(read_only=True)
+
+    class Meta:
+        model = models.BillSharingPyee
+        fields = (
+            "id",
+            "bill_sharing",
+            "user",
+            "amount",
+            "status",
+            "date_created",
+        )
+
+
+class MakeBillSharingPaymentAccountSerializer(serializers.Serializer):
+    account_number = serializers.CharField()
+
+    def validate_account_number(self, account_number):
+        if not models.BankAccount.objects.filter(
+            account_number=account_number,
+        ).exists():
+            raise exceptions.AccountNumberNotExist()
+        return models.BankAccount.objects.filter(
+            account_number=account_number,
+        ).first()
+
+
+class RejectBillSharingRequestSerializer(serializers.Serializer):
+    reason = serializers.CharField()
