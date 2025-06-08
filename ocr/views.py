@@ -174,7 +174,7 @@ class IdCardConfirmView(generics.UpdateAPIView):
             IdCard.objects.select_related("user"), id=id_card_id, user=self.request.user
         )
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args, **kwargs) -> Response:
         id_card = self.get_object()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
