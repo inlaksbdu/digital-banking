@@ -239,7 +239,7 @@ class NetworkProvidersViewset(ModelViewSet):
 
         try:
             response = resolve_phone_number(
-                phone_number=phone_number,
+                phone_number=str(phone_number).replace("+", ""),
                 network_provider_code=network_provider.code,
             )
 

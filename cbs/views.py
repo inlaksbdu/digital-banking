@@ -1204,8 +1204,8 @@ class CardViewset(ModelViewSet):
     queryset = models.Card.objects.all()
     serializer_class = serializers.CardSerializer
     permission_classes = [rest_permissions.IsAuthenticated]
-    http_method_names = ["get", "post"]
-    filterset_fields = ["card_form"]
+    http_method_names = ["get", "post", "delete"]
+    filterset_fields = ["card_form", "virtual_card_type"]
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
@@ -1241,6 +1241,79 @@ class CardViewset(ModelViewSet):
                 context={"request": request},
                 many=False,
             ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="virtual-card-topup",
+        url_name="virtual-card-topup",
+        permission_classes=[rest_permissions.IsAuthenticated],
+        serializer_class=serializers.VirtualCardTopUpSerializer,
+    )
+    def virtual_card_topup(self, request: HttpRequest, pk):
+        instance = self.get_object()
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        account = serializer.validated_data["account_number"]
+        amount = serializer.validated_data["amount"]
+
+        # validate account
+        if account.user != request.user:
+            raise exceptions.GeneralException(
+                detail="Sorry, You are not authorized to perform this paymnet."
+            )
+
+        # MAKE PAYMENT TO CORE BANKING
+        recipient_account = settings.UNITEL_GL_ACCOUNT
+        payload = {
+            "debitAccountId": str(account.account_number),
+            "creditAccountId": str(recipient_account),
+            "debitAmount": str(amount),
+            "debitCurrency": str(account.currency),
+            "transactionType": "AC",
+            "paymentDetails": "Virtual Card Topup",
+            "channel": "",
+        }
+
+        url = f"{base_url}/party/creategtiFundsTransfer"
+        headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
+        response = requests.post(
+            url, headers=headers, json=json.dumps({"body": payload})
+        )
+        data = json.loads(response.text)
+
+        errorcode = ""
+
+        if response.status_code != 200:
+            if "error" in data:
+                errorData = data["error"]
+                error_detail = errorData["errorDetails"]
+                errorcode = ""
+                for error in error_detail:
+                    errorcode += f"{error['message']},  "
+
+            elif "override" in data:
+                errorData = data["override"]
+                error_detail = errorData["overrideDetails"]
+                errorcode = ""
+                for error in error_detail:
+                    errorcode += f"{error['description']},  "
+            else:
+                errorcode = data
+
+            return Response(
+                data={"status": False, "messages": "", "error": errorcode},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        logger.info(" [FUNDS TRANSFER]: ", response.text)
+        instance.virtual_card_balance += amount
+        instance.save()
+        instance.refresh_from_db()
+
+        return Response(
+            data={"status": True, "message": "Topup successful"},
             status=status.HTTP_200_OK,
         )
 
