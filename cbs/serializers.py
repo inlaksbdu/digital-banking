@@ -7,7 +7,6 @@ from accounts.models import CustomUser
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.BankAccount
         fields = (
@@ -115,7 +114,6 @@ class PaymentBillerSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
-
     source_account_name = serializers.SerializerMethodField(read_only=True)
     initiater_info = serializers.SerializerMethodField(read_only=True)
 

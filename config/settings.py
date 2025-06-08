@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "accounts",
     "datatable",
     "cbs",
+    "ocr",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
@@ -512,3 +513,23 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", default="default")
 # PAYSTACK
 PAYSTACK_BASE_URL = os.getenv("PAYSTACK_BASE_URL", "")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
+
+
+USE_S3 = as_bool(os.getenv("USE_S3", default="False"))
+
+AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
+AWS_STORAGE_BUCKET_NAME = os.environ["AWS_STORAGE_BUCKET_NAME"]
+AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "us-east-1")
+
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "max-age=86400",
+}
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = "private"
+AWS_S3_VERIFY = True
+
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+
+ID_ANALYZER_API_KEY = os.getenv("ID_ANALYZER_API_KEY", "")

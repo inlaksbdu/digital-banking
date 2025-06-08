@@ -13,6 +13,7 @@ urlpatterns = [
     path("digital/control/", admin.site.urls),
     path("i18n/", set_language, name="set_language"),
     path("accounts/", include("allauth.urls")),
+    path("ocr/", include("ocr.urls")),
     # path("", include("core.urls")),
     path("datatables/", include("datatable.urls")),
     path("cbs/", include("cbs.urls")),

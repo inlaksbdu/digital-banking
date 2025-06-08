@@ -315,7 +315,7 @@ class SignUpNewCustomerSerializer(serializers.Serializer):
             f"account_verification/{phone_number}/verifcode/new-customer/",
         )
 
-        if not str(verification_code) in [cached_email_code, cached_phone_code]:
+        if str(verification_code) not in [cached_email_code, cached_phone_code]:
             raise exceptions.GeneralException(
                 detail="Sorry, the provied verification Code is Invalid."
             )

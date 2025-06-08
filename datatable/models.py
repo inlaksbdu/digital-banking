@@ -131,7 +131,6 @@ class Atm(models.Model):
 
 
 class NotificationMessage(models.Model):
-
     class MessageType(models.TextChoices):
         ACCOUNT_PHONE_NUMBER_VERIFICATION = "ACCOUNT_PHONE_NUMBER_VERIFICATION"
         EMAIL_TOKEN_VERIFICATION = "EMAIL_TOKEN_VERIFICATION"

@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cbs", "0005_paymentbiller_payment"),
         ("datatable", "0004_telcodataplan"),

@@ -39,7 +39,7 @@ def get_other_banks():
 
         for bank in data:
             if (
-                not bank["type"] in ["mobile_money", "mobile_money_business"]
+                bank["type"] not in ["mobile_money", "mobile_money_business"]
                 and not OtherBank.objects.filter(code=bank["code"]).exists()
             ):
                 OtherBank.objects.create(
