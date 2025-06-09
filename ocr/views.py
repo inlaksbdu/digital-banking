@@ -14,7 +14,6 @@ from rest_framework import generics, permissions, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.exceptions import APIException
 
 from .choices import StageChoices
 from .exceptions import (

@@ -18,6 +18,7 @@ urlpatterns = [
     path("datatables/", include("datatable.urls")),
     path("cbs/", include("cbs.urls")),
     path("auth/", include("accounts.urls")),
+    path("chatbot/", include("chatbot.urls")),
     path("digital/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "digital/api-docs/",

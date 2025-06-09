@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     "cbs",
     "dashboard",
     "ocr",
+    "chatbot",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
