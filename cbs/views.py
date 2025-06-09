@@ -32,6 +32,8 @@ from django.db.models import Q
 from django.db import transaction
 from accounts.models import CustomUser
 from faker import Faker
+from django_filters import BaseInFilter, NumberFilter
+from accounts.tasks import generic_send_mail
 
 # Create your views here.
 
@@ -252,7 +254,7 @@ class BankAccountViewset(ModelViewSet):
         # Generate context for the email template
         context = {
             "bank_name": "Family Bank",
-            "logo": "https://mamicha.com/wp-content/uploads/2019/05/Mamicha-Logos-05.png",
+            "logo": "https://www.consolidated-bank.com/images/consolidated_bank_logo.png",
             "customer_name": str(request.user.fullname).upper(),
             "account_number": bank_account.account_number,
             "statements": statement,
@@ -348,7 +350,6 @@ class TransferViewset(ModelViewSet):
             history_type=models.TransactionHistory.TransactionType.TRANSFER,
             date_created=timezone.now(),
         )
-        print("=== about to updated expense limit ===")
         # update expense limit if any
         celery_tasks.update_expense_limit.delay(
             account_id=instance.source_account.id,
@@ -375,7 +376,7 @@ class TransferViewset(ModelViewSet):
             if instance.transfer_type in [
                 "Other Bank Transfer",
                 "International Transfer",
-                "Account to Wallet",
+                "Account To Wallet",
             ]:
                 recipient_account = settings.UNITEL_GL_ACCOUNT
             else:
@@ -427,6 +428,29 @@ class TransferViewset(ModelViewSet):
 
             # create a credit notificaiton to the recipeient account
             if req_status == "success":
+                # send an email for Transaction notification
+                payload = {
+                    "emailType": "transfer_notice",
+                    "body": "Transaction Alert",
+                    "subject": "Transaction Alert",
+                    "transactionId": instance.t24_reference,
+                    "amount": instance.amount,
+                    "fromAccount": instance.source_account.account_number,
+                    "toAccount": recipient_account,
+                    "recipientName": instance.recipient_name,
+                    "transferDate": instance.date_created,
+                    "transferType": instance.transfer_type,
+                    "reference": instance.purpose_of_transaction,
+                    "transferStatus": "Success",
+                    # "transactionDetailsUrl": "{{ transactionDetailsUrl }}",
+                }
+
+                generic_send_mail.delay(
+                    recipient=instance.user.email,
+                    title="Transaction Alert",
+                    payload=payload,
+                )
+
                 try:
                     recipient_account = models.BankAccount.objects.filter(
                         account_number=instance.recipient_account
@@ -636,6 +660,29 @@ class PaymentViewset(ModelViewSet):
             )
             instance.status = req_status.title()
             instance.save()
+
+            if req_status != "Success":
+                payload = {
+                    "emailType": "transfer_notice",
+                    "body": "Payment Alert",
+                    "subject": "Payment Alert",
+                    "transactionId": instance.t24_reference,
+                    "amount": instance.amount,
+                    "fromAccount": instance.source_account.account_number,
+                    "toAccount": gl_account,
+                    "recipientName": instance.beneficiary_name,
+                    "transferDate": instance.date_created,
+                    "transferType": instance.payment_type,
+                    "reference": instance.purpose_of_transaction,
+                    "transferStatus": "Success",
+                    # "transactionDetailsUrl": "{{ transactionDetailsUrl }}",
+                }
+
+                generic_send_mail.delay(
+                    recipient=instance.user.email,
+                    title="Payment Alert",
+                    payload=payload,
+                )
             # Customize your response here
             return Response(
                 {
@@ -1358,3 +1405,92 @@ class TravelNoticeViewset(ModelViewSet):
 
     def perform_create(self, serializer):
         return serializer.save(user=self.request.user)
+
+
+class NumberInFilter(BaseInFilter, NumberFilter):
+    pass
+
+
+class ComplaintFilter(djangofilters.FilterSet):
+    start_date = djangofilters.DateFilter(
+        field_name="date_created", lookup_expr="gte", required=False
+    )
+    end_date = djangofilters.DateFilter(
+        field_name="date_created", lookup_expr="lte", required=False
+    )
+    category = NumberInFilter(field_name="category", lookup_expr="in", required=False)
+
+    class Meta:
+        model = models.Complaint
+        fields = (
+            "priority",
+            "category",
+            "comp_id",
+            "status",
+        )
+
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+
+        start_date = self.data.get("start_date")
+        end_date = self.data.get("end_date")
+
+        if start_date and end_date:
+            queryset = queryset.filter(
+                date_created__gte=start_date, date_created__lte=end_date
+            )
+        elif start_date:
+            queryset = queryset.filter(date_created__gte=start_date)
+        elif end_date:
+            queryset = queryset.filter(date_created__lte=end_date)
+
+        return queryset
+
+
+@extend_schema(tags=["Complaint"])
+class ComplaintViewset(ModelViewSet):
+    queryset = models.Complaint.objects.all()
+    serializer_class = serializers.ComplaintSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = (
+        "get",
+        "post",
+    )
+    filter_backends = (filters.SearchFilter, DjangoFilterBackend)
+    filterset_class = ComplaintFilter
+    search_fields = [
+        "priority",
+        "comp_id",
+        "status",
+    ]
+
+    def get_serializer_class(self):  # type: ignore[override]
+        if self.request.method == "POST":
+            return serializers.ComplaintCreateSerializer
+        return super().get_serializer_class()
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        files = self.request.data.getlist("files", [])
+        serializer.is_valid(raise_exception=True)
+        serializer.validated_data.pop("files")
+        instance = serializer.save(user=self.request.user)
+
+        print("=== files: ", files)
+
+        for file in files:
+            models.ComplaintFile.objects.create(
+                file=file,
+                complaint=instance,
+            )
+
+        return instance
+
+
+@extend_schema(tags=["Complaint"])
+class ComplaintCategoryViewset(ModelViewSet):
+    queryset = models.ComplaintCategory.objects.all()
+    serializer_class = serializers.ComplaintCategorySerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ("get",)
+    # filterset_fields = ("name", "customer")

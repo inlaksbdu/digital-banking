@@ -282,3 +282,49 @@ class TravelNoticeAdmin(ModelAdmin):
         "alternative_phone",
         "date_created",
     )
+
+
+@admin.register(models.ChequeRequest)
+class ChequeRequestAdmin(ModelAdmin):
+    list_display = ("id", "user", "source_account", "leaves")
+
+
+@admin.register(models.BankStatement)
+class BankStatementAdmin(ModelAdmin):
+    list_display = ("id", "user", "source_account", "date_created")
+
+
+@admin.register(models.Complaint)
+class ComplaintAdmin(ModelAdmin):
+    list_display = [
+        "id",
+        "user",
+        "comp_id",
+        "category",
+        "description",
+        "priority",
+        "status",
+        "resolution_time",
+        "last_updated",
+    ]
+    readonly_fields = [
+        "date_created",
+        "last_updated",
+        "uuid",
+    ]
+    list_filter = (
+        "priority",
+        "status",
+    )
+
+
+@admin.register(models.ComplaintCategory)
+class ComplaintCategoryAdmin(ModelAdmin):
+    list_display = [
+        "id",
+        "category_name",
+        "resolution_sla",
+        "date_created",
+        "last_updated",
+    ]
+    search_fields = ["name", "body"]

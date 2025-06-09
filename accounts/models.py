@@ -100,6 +100,43 @@ class UserSecurityQuestion(models.Model):
         return check_password(raw_answer, self.answer_hash)
 
 
+class Staff(models.Model):
+    user_account = models.OneToOneField(
+        CustomUser,
+        related_name="staff_account",
+        on_delete=models.CASCADE,
+    )
+
+    # META DATA
+    uuid = models.UUIDField(unique=True, blank=True, null=True, default=uuid.uuid4)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("user_account",)
+
+    def __str__(self):
+        return str(self.user_account)
+
+
+class ActivityLog(models.Model):
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="activity_logs",
+    )
+    action = models.TextField()
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return str(self.user)
+
+    class Meta:
+        ordering = ("-date_created",)
+
+
 class AccessGuardian(models.Model):
     class LogTypes(models.TextChoices):
         LOGIN_ATTEMPT = "Login Attempt"

@@ -25,7 +25,8 @@ from rest_framework import permissions as rest_permissions
 from django.utils.translation import gettext_lazy as _
 from rest_framework.generics import GenericAPIView
 from rest_framework.viewsets import ModelViewSet
-from helpers.access_guradian import log_access_guardian
+
+# from helpers.access_guradian import log_access_guardian
 
 
 class UserProfileView(GenericAPIView):
@@ -496,11 +497,11 @@ class VerifyOldPasswrodViewset(CreateAPIView):
             cache.set(f"password-verification/{request.user.id}", attempt, 60 * 5)
 
             if attempt > 3:
-                log_access_guardian(
-                    request=request,
-                    log_type=str(data_tables.AccessGuardian.LogTypes.PASSWORD_CHANGE),
-                    phone_number=str(request.user.phone_number),
-                )
+                # log_access_guardian(
+                #     request=request,
+                #     log_type=str(data_tables.AccessGuardian.LogTypes.PASSWORD_CHANGE),
+                #     phone_number=str(request.user.phone_number),
+                # )
                 raise exceptions.TooManyAttempt()
             return Response(
                 {"status": False, "message": "Invalid Password"},
@@ -537,11 +538,11 @@ class VerifyOldPINViewset(CreateAPIView):
             cache.set(f"pin/attempt/{user.id}", attempt, 60 * 5)
             message = "Invalid PIN"
             if attempt > 3:
-                log_access_guardian(
-                    request=request,
-                    log_type=data_tables.AccessGuardian.LogTypes.INVALID_PIN,
-                    phone_number=str(user.phone_number),
-                )
+                # log_access_guardian(
+                #     request=request,
+                #     log_type=data_tables.AccessGuardian.LogTypes.INVALID_PIN,
+                #     phone_number=str(user.phone_number),
+                # )
                 message = "Account Deactivated"
 
             return Response(
@@ -592,11 +593,11 @@ class ForgotPINView(CreateAPIView):
         cache.set(f"forgot-pin/{user.id}", attempt, 60 * 5)
 
         if attempt > 3:
-            log_access_guardian(
-                request=request,
-                log_type=str(data_tables.AccessGuardian.LogTypes.FORGOT_PIN),
-                phone_number=str(user.phone_number),
-            )
+            # log_access_guardian(
+            #     request=request,
+            #     log_type=str(data_tables.AccessGuardian.LogTypes.FORGOT_PIN),
+            #     phone_number=str(user.phone_number),
+            # )
             raise exceptions.TooManyAttempt()
         return Response(
             {"status": False, "message": "Invalid Password or Security Answer"},

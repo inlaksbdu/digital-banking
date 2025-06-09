@@ -44,6 +44,7 @@ drf-yasg==1.21.10
 Faker==37.3.0
 fonttools==4.58.2
 frozenlist==1.6.2
+geoip2==5.1.0
 gevent==25.5.1
 greenlet==3.2.3
 gunicorn==23.0.0
@@ -59,6 +60,7 @@ jsonschema-specifications==2025.4.1
 kombu==5.5.3
 loguru==0.7.3
 MarkupSafe==3.0.2
+maxminddb==2.7.0
 multidict==6.4.4
 orjson==3.10.7
 packaging==25.0

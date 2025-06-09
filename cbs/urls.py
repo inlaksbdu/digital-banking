@@ -43,6 +43,12 @@ router.register(
     "card-management", views.CardManagementViewset, basename="card-management"
 )
 router.register("travel-notice", views.TravelNoticeViewset, basename="travel-notice")
+router.register("complaints", views.ComplaintViewset, basename="complaints")
+router.register(
+    "complaint-category",
+    views.ComplaintCategoryViewset,
+    basename="complaint-category",
+)
 urlpatterns = [
     path(
         "fx-rates/",

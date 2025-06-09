@@ -22,6 +22,7 @@ from .tasks import count_visit
 from loguru import logger
 from django.db import transaction
 import secrets
+from .utils import get_login_notification_data
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
@@ -231,6 +232,26 @@ class CustomLoginSerializer(LoginSerializer):
 
         # count customer visit
         count_visit.delay(user_id=user.id)
+
+        # send notificaiton for login
+        login_notification_data = get_login_notification_data(
+            request=request,
+            user_id=user.id,
+            security_center_base_url="https://cbkkenya.com/security",
+        )
+
+        payload = {
+            "emailType": "login_notification",
+            "subject": "New device sign in",
+            **login_notification_data,
+        }
+
+        generic_send_mail.delay(
+            recipient=user.email,
+            title="Account Verification",
+            payload=payload,
+        )
+
         attrs = super().validate(attrs)
         return attrs
 

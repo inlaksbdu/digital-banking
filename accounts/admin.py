@@ -44,6 +44,22 @@ class UserAdmin(UserAdmin, ModelAdmin):
         ),
     )
 
+    def save_model(self, request, obj, form, change):
+        is_new = obj.pk is None
+        super().save_model(request, obj, form, change)
+        print("== user password: ", obj.password)
+        if is_new:
+
+            # You can customize the subject and message
+            # send_mail(
+            #     subject="Welcome to the platform!",
+            #     message=f"Hi {obj.fullname}, your account has been successfully created.",
+            #     from_email="no-reply@yourdomain.com",
+            #     recipient_list=[obj.email],
+            #     fail_silently=False,
+            # )
+            pass
+
 
 @admin.register(models.CustomerProfile)
 class CustomerProfileAdmin(ModelAdmin):
