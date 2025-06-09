@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models import FloatField
+from django.db.models.functions import Cast, Sin, Cos, Sqrt, Radians, ATan2
 from ckeditor.fields import RichTextField
 import uuid
 
@@ -106,6 +108,33 @@ class BankBranch(models.Model):
         # location = geolocator.reverse("52.509669, 13.376294")
         # self.address = location.address
         super().save(*args, **kwargs)
+
+    @classmethod
+    def find_closest(cls, latitude: float, longitude: float) -> list[dict]:
+        R = 6371
+        lat1_rad = Radians(latitude)
+        lon1_rad = Radians(longitude)
+        lat2_rad = Radians(Cast("langtitude_cordinates", FloatField()))
+        lon2_rad = Radians(Cast("longitude_cordinates", FloatField()))
+
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+
+        a = Sin(dlat / 2) ** 2 + Cos(lat1_rad) * Cos(lat2_rad) * Sin(dlon / 2) ** 2
+        c = 2 * ATan2(Sqrt(a), Sqrt(1 - a))
+        distance = R * c
+
+        closest_branches = list(
+            cls.objects.annotate(distance=distance)
+            .exclude(closed=True)
+            .order_by("distance")
+            .values("id", "name", "address", "distance")[:3]
+        )
+
+        if not closest_branches:
+            raise cls.DoesNotExist("No branches available")
+
+        return closest_branches
 
 
 class Atm(models.Model):
@@ -223,7 +252,7 @@ class DigitalPlatformVisits(models.Model):
     date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
-        return self.user
+        return str(self.user) if self.user else "Anonymous Visit"
 
 
 class CardServiceReason(models.Model):

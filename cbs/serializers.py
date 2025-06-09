@@ -745,7 +745,6 @@ class ComplaintSerializer(serializers.ModelSerializer):
 
 
 class ComplaintCreateSerializer(serializers.ModelSerializer):
-
     files = serializers.ListField(
         child=serializers.FileField(),
         required=False,

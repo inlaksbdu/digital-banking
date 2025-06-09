@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cbs", "0013_card_virtual_card_balance"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

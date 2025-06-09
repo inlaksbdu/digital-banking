@@ -22,4 +22,9 @@ urlpatterns = [
         views.IdCardDeleteView.as_view(),
         name="admin-id-card-delete",
     ),
+    path(
+        "id-cards/email/<str:email>/",
+        views.IdCardDetailByEmailView.as_view(),
+        name="id-card-detail-email",
+    ),
 ]
