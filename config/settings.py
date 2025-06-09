@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "accounts",
     "datatable",
     "cbs",
+    "dashboard",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware

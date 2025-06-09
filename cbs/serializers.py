@@ -706,3 +706,19 @@ class VirtualCardTopUpSerializer(serializers.Serializer):
         return models.BankAccount.objects.filter(
             account_number=account_number,
         ).first()
+
+
+class CarPinResetSerializer(serializers.StringRelatedField):
+    account_number = serializers.CharField()
+    email = serializers.EmailField()
+
+
+class VerifyCardPinResetOTPSerializer(serializers.Serializer):
+    otp = serializers.CharField()
+    email = serializers.EmailField()
+
+
+class ChangeCardPinSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField()
+    new_pin = serializers.CharField()

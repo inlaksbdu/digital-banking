@@ -1,0 +1,80 @@
+{% extends 'core_base.html' %} {% block content %}
+<div class="col-sm-12">
+  <div class="card table-card">
+    <div class="card-header">
+      <div class="row align-items-center g-2">
+        <div class="col"><h5>List</h5></div>
+        <div class="col-auto">
+          <div class="form-search">
+            <i class="ti ti-search"></i>
+            <input
+              type="search"
+              class="form-control"
+              placeholder="Search Followers"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body pt-0">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>User Profile</th>
+              <th>Phone Number</th>
+              <th>Gender</th>
+              <th>DoB</th>
+              <th>ID Number</th>
+              <th>Nationality</th>
+              <th>Date Joined</th>
+              <th>Last Seen</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for customer in customers %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>
+                <a href="{% url 'dashboard:customer-detail' customer.uuid %}">
+
+                    <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 wid-40">
+                        <img
+                        class="img-radius img-fluid wid-40"
+                        {% if customer.profile_picture %} src="{{ customer.profile_picture.url }}" {% endif %}
+                        alt="User image"
+                        />
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="mb-1">
+                        {{ customer.user_account.fullname }}
+                        </h5>
+                        <p class="text-muted f-12 mb-0">{{ customer.user_account.email }}</p>
+                    </div>
+                    </div>
+                </a>
+
+              </td>
+              <td>{{ customer.user_account.phone_number }}</td>
+              <td>{{ customer.gender}}</td>
+              <td>{{ customer.date_of_birth }}</td>
+              <td>{{ customer.id_number }}</td>
+              <td>{{ customer.nationality }}</td>
+              <td>{{ customer.user_account.date_joined }}</td>
+              <td>{{ customer.user_account.last_login }}</td>
+              <td>
+                <span class="badge bg-light-success rounded-pill f-14">Active</span>
+              </td>
+
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

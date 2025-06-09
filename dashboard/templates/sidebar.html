@@ -1,0 +1,46 @@
+{% load static %}
+<!-- [ Sidebar Menu ] start -->
+<nav class="pc-sidebar">
+  <div class="navbar-wrapper">
+    <div class="m-headers text-center p-4" >
+      <a href="/" class="b-brand text-primary">
+        <!-- ========   Change your logo from here   ============ -->
+        <!-- <img src="{% static 'images/logo-dark.svg' %}" alt="" class="logo logo-lg" /> -->
+        <img style="height: 60px;" class="logo " src="https://mamicha.com/wp-content/uploads/2019/05/Mamicha-Logos-05.png" alt="" srcset="">
+
+      </a>
+    </div>
+    <div class="navbar-content">
+      <ul class="pc-navbar">
+        <!-- <li class="pc-item pc-caption">
+          <label>Dashboard</label>
+          <i class="ti ti-dashboard"></i>
+        </li> -->
+        <li class="pc-item">
+          <a href="/" class="pc-link"
+            ><span class="pc-micon"><i class="ti ti-dashboard"></i></span><span class="pc-mtext">Dashboard</span></a
+          >
+        </li>
+
+        <li class="pc-item pc-caption">
+          <label>Elements</label>
+          <i class="ti ti-apps"></i>
+        </li>
+
+        {% url 'dashboard:customers' as customers_url %}
+        <li class="pc-item {% if request.path == quotations_url %}active{% endif %}">
+          <a href="{{ customers_url }}" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-typography"></i></span>
+            <span class="pc-mtext">Customers</span>
+          </a>
+        </li>
+
+      </ul>
+
+      <div class="w-100 text-center">
+        <div class="badge theme-version badge rounded-pill bg-light text-dark f-12"></div>
+      </div>
+    </div>
+  </div>
+</nav>
+<!-- [ Sidebar Menu ] end -->

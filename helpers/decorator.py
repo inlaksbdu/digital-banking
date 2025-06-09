@@ -2,17 +2,15 @@ from django.http.request import HttpRequest
 from django.shortcuts import redirect
 from django.contrib import messages
 from functools import wraps
-from accounts.models import CustomUser
+
+# from accounts.models import CustomUser
 
 
 def is_staff_user(f, *args, **kwargs):
     @wraps(f)
     def inner(request: HttpRequest, *args, **kwargs):
         if request.user.is_authenticated:
-            if (
-                request.user.account_type == CustomUser.AccountType.STAFF_USER
-                or request.user.is_superuser
-            ):
+            if request.user.is_staff or request.user.is_superuser:
                 return f(request, *args, **kwargs)
             messages.error(
                 request,
