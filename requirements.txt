@@ -28,6 +28,7 @@ django-allauth==65.8.1
 django-celery-beat==2.8.1
 django-ckeditor==6.7.2
 django-cors-headers==4.7.0
+django-credit-cards==0.4.1
 django-crispy-forms==2.4
 django-debug-toolbar==5.2.0
 django-filter==25.1
@@ -40,6 +41,7 @@ djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
 drf-spectacular==0.28.0
 drf-yasg==1.21.10
+Faker==37.3.0
 fonttools==4.58.2
 frozenlist==1.6.2
 gevent==25.5.1
