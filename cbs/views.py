@@ -1494,3 +1494,15 @@ class ComplaintCategoryViewset(ModelViewSet):
     permission_classes = [rest_permissions.IsAuthenticated]
     http_method_names = ("get",)
     # filterset_fields = ("name", "customer")
+
+
+@extend_schema(tags=["Services Charges"])
+class BankChargesViewset(ModelViewSet):
+    queryset = models.BankCharges.objects.all()
+    serializer_class = serializers.BankChargesSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ("get",)
+    filterset_fields = ("charge_type",)
+
+    def get_queryset(self):
+        return self.queryset.filter(is_active=True)

@@ -328,3 +328,13 @@ class ComplaintCategoryAdmin(ModelAdmin):
         "last_updated",
     ]
     search_fields = ["name", "body"]
+
+
+@admin.register(models.BankCharges)
+class BankChargesAdmin(ModelAdmin):
+    list_display = [
+        "id",
+        "charge_type",
+        "percentage",
+        "flat_rate",
+    ]

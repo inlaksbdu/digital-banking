@@ -1360,3 +1360,33 @@ class ComplaintFile(models.Model):
 
     def __str__(self):
         return str(self.file)
+
+
+class BankCharges(models.Model):
+    class CharTypes(models.TextChoices):
+        OWN_ACCOUNT_TRANSFER = "Own Account Transfer"
+        SAME_BANK_TRANSFER = "Same Bank Transfer"
+        OTHER_BANK_TRANSFER = "Other Bank Transfer"
+        INTERNATIONAL_TRANSFER = "International Transfer"
+        ACCOUNT_TO_WALLET = "Account To Wallet"
+        AIRTIME = "Airtime"
+        DATA = "Data"
+        BILL_PAYMENT = "Bill Payment"
+        CARD_REQEUSTS = "Card Requests"
+        CHEQUE_REQUESTS = "Cheque Requests"
+
+    charge_type = models.CharField(max_length=100, choices=CharTypes.choices)
+    percentage = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    flat_rate = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    is_active = models.BooleanField(default=True)
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(unique=True, blank=True, null=True, default=uuid.uuid4)
+
+    def __str__(self):
+        return str(self.charge_type)

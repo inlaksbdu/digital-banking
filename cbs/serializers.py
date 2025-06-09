@@ -793,3 +793,15 @@ class ChangeCardPinSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField()
     new_pin = serializers.CharField()
+
+
+class BankChargesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.BankCharges
+        fields = (
+            "id",
+            "charge_type",
+            "percentage",
+            "flat_rate",
+            "date_created",
+        )

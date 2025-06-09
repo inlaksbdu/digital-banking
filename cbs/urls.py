@@ -49,6 +49,7 @@ router.register(
     views.ComplaintCategoryViewset,
     basename="complaint-category",
 )
+router.register("service-charges", views.BankChargesViewset, basename="service-charges")
 urlpatterns = [
     path(
         "fx-rates/",
