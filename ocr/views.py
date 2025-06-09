@@ -14,7 +14,6 @@ from rest_framework import generics, permissions, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.exceptions import APIException
 
 from .choices import StageChoices
 from .exceptions import (
@@ -55,7 +54,8 @@ class OnboardingStageView(generics.RetrieveAPIView):
 
 class DocumentOCRView(generics.CreateAPIView):
     serializer_class = IdCardCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
     parser_classes = [MultiPartParser, FormParser]
 
     def create(self, request: Request, *args, **kwargs) -> Response:
@@ -64,14 +64,23 @@ class DocumentOCRView(generics.CreateAPIView):
 
         try:
             with transaction.atomic():
-                if IdCard.objects.filter(user=request.user).exists():
+                # Prevent duplicate submissions by email
+                email = serializer.validated_data.get("email")
+                if email and IdCard.objects.filter(email=email).exists():
                     return Response(
-                        {"error": "ID card already exists for this user"},
+                        {"error": "ID card already exists for this email"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
+                # Pass authenticated user if present, else None
+                user = (
+                    request.user
+                    if getattr(request.user, "is_authenticated", False)
+                    else None
+                )
+                logger.info(f"User: {user}")
                 result = self._process_document_verification(
-                    request.user, serializer.validated_data
+                    user, serializer.validated_data
                 )
 
                 return Response(result, status=status.HTTP_201_CREATED)
@@ -155,8 +164,8 @@ class DocumentOCRView(generics.CreateAPIView):
                 response_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        s3_urls = aws_service.upload_to_s3(
-            user.pk,
+        # Upload without requiring user id (type-ignore for validated_data types)
+        s3_urls = aws_service.upload_to_s3(  # type: ignore
             validated_data["image_front"],
             validated_data.get("image_back"),
             validated_data["selfie"],
@@ -169,13 +178,19 @@ class DocumentOCRView(generics.CreateAPIView):
             s3_urls=s3_urls,  # type: ignore
         )
 
-        onboarding_stage, _ = OnboardingStage.objects.get_or_create(
-            user=user, defaults={"stage": StageChoices.ID_VERIFICATION}
-        )
-        onboarding_stage.stage = StageChoices.ID_VERIFICATION
-        onboarding_stage.save()
+        # Attach provided email
+        if validated_data.get("email"):
+            id_card.email = validated_data.get("email")
+            id_card.save(update_fields=["email"])
 
-        cache.delete(f"onboarding_stage_{user.pk}")
+        # onboarding_stage, _ = OnboardingStage.objects.get_or_create(
+        #     user=user, defaults={"stage": StageChoices.ID_VERIFICATION}
+        # )
+        # onboarding_stage.stage = StageChoices.ID_VERIFICATION
+        # onboarding_stage.save()
+
+        if user:
+            cache.delete(f"onboarding_stage_{user.pk}")
 
         ocr_data = id_card.to_dict(
             exclude=[
@@ -184,6 +199,10 @@ class DocumentOCRView(generics.CreateAPIView):
                 "document_number_text",
                 "updated_at",
                 "additional_images",
+                "front_image",
+                "back_image",
+                "self_image",
+                "selfie_video",
             ],
             show_field_confidence=True,
         )
@@ -212,13 +231,13 @@ class IdCardConfirmView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        id_card_id = self.kwargs.get("id")
-        return get_object_or_404(
-            IdCard.objects.select_related("user"), id=id_card_id, user=self.request.user
-        )
+        email = getattr(self.request.user, "email", None)
+        return get_object_or_404(IdCard.objects.select_related("user"), email=email)
 
     def update(self, request: Request, *args, **kwargs) -> Response:
         id_card = self.get_object()
+        if not id_card.user:
+            id_card.user = request.user
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -226,11 +245,14 @@ class IdCardConfirmView(generics.UpdateAPIView):
             with transaction.atomic():
                 for field_name, value in serializer.validated_data.items():  # type: ignore
                     if value is not None:
-                        ocr_field_value = {
-                            "content": self._format_value(value),
-                            "confidence": 1.0,  # User confirmed data has 100% confidence
-                        }
-                        setattr(id_card, field_name, ocr_field_value)
+                        if field_name in ("latitude", "longitude"):
+                            setattr(id_card, field_name, value)
+                        else:
+                            ocr_field_value = {
+                                "content": self._format_value(value),
+                                "confidence": 1.0,  # User confirmed data has 100% confidence
+                            }
+                            setattr(id_card, field_name, ocr_field_value)
 
                 id_card.is_confirmed = True
                 id_card.save()
@@ -301,3 +323,15 @@ class IdCardDeleteView(generics.DestroyAPIView):
         id_card = self.get_object()
         id_card.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class IdCardDetailByEmailView(generics.RetrieveAPIView):
+    serializer_class = IdCardSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_object(self):
+        email = self.kwargs.get("email")
+        return get_object_or_404(IdCard.objects.select_related("user"), email=email)

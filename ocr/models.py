@@ -54,8 +54,13 @@ class IdCardField(models.JSONField):
 class IdCard(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
-        "accounts.CustomUser", on_delete=models.CASCADE, related_name="id_card"
+        "accounts.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="id_card",
+        null=True,
+        blank=True,
     )
+    email = models.EmailField(null=True, blank=True)
 
     first_name = IdCardField()
     middle_name = IdCardField(null=True, blank=True)
@@ -136,7 +141,9 @@ class IdCard(models.Model):
         ]
 
     def __str__(self):
-        return f"ID Card for {self.user.username} ({self.document_type})"
+        # Fallback to email if no user is associated
+        identifier = self.user.username if self.user else (self.email or "Unknown")
+        return f"ID Card for {identifier} ({self.document_type})"
 
     def save(self, *args, **kwargs):
         if self.id_number:

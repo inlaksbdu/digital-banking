@@ -62,6 +62,7 @@ loguru==0.7.3
 MarkupSafe==3.0.2
 maxminddb==2.7.0
 multidict==6.4.4
+orjson==3.10.7
 packaging==25.0
 phonenumbers==9.0.6
 pillow==11.2.1

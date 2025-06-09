@@ -31,6 +31,7 @@ class IdCardSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "user",
+            "email",
             "first_name",
             "middle_name",
             "last_name",
@@ -68,6 +69,7 @@ class IdCardSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "user",
+            "email",
             "created_at",
             "updated_at",
             "confidence_score",
@@ -168,6 +170,7 @@ class IdCardSerializer(serializers.ModelSerializer):
 
 
 class IdCardCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField(help_text="Email of the customer")
     document_type = serializers.ChoiceField(
         choices=DocumentTypeChoices.choices, help_text="Type of document being uploaded"
     )
@@ -285,6 +288,8 @@ class IdCardConfirmSerializer(serializers.Serializer):
     country = serializers.CharField(max_length=100, required=False)
     state = serializers.CharField(max_length=100, required=False)
     nationality = serializers.CharField(max_length=100, required=False)
+    latitude = serializers.FloatField(required=False)
+    longitude = serializers.FloatField(required=False)
 
     def validate_date_of_expiry(self, value):
         if value and value < date.today():
