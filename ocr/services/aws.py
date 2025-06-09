@@ -70,7 +70,6 @@ class AWSService:
 
     def upload_files_concurrently(
         self,
-        user_id: Any,
         files: Dict[
             Literal["front", "back", "selfie", "selfie_video"] | str,
             Optional[InMemoryUploadedFile],
@@ -83,7 +82,6 @@ class AWSService:
         Upload multiple files to S3 concurrently using gevent
 
         Args:
-            user_id: User identifier for organizing files
             files: Dictionary of {file_type: file_object} to upload
             file_category: Category for organizing files (e.g., 'id_cards', 'documents')
             bucket_name: S3 bucket name (optional)
@@ -109,7 +107,7 @@ class AWSService:
 
                 hash_md5 = hashlib.md5(content).hexdigest()
                 file_ext = self._get_file_extension(file_obj)
-                key = f"{file_category}/{user_id}/{file_type}/{hash_md5}.{file_ext}"
+                key = f"{file_category}/{file_type}/{hash_md5}.{file_ext}"
 
                 existing_url = self.get_image_url_if_exists(key)
                 if existing_url:
@@ -125,7 +123,6 @@ class AWSService:
                         or "application/octet-stream",
                         "ACL": "private",
                         "Metadata": {
-                            "user_id": str(user_id),
                             "file_type": file_type,
                             "file_category": file_category,
                             "uploaded_at": datetime.now().isoformat(),
@@ -207,11 +204,10 @@ class AWSService:
     @deprecated("Use upload_files_concurrently instead", category=DeprecationWarning)
     def upload_to_s3(
         self,
-        user_id: Any,
-        image_front: InMemoryUploadedFile,
-        image_back: Optional[InMemoryUploadedFile],
-        selfie: InMemoryUploadedFile,
-        selfie_video: Optional[InMemoryUploadedFile] = None,
+        image_front: Any,
+        image_back: Any,
+        selfie: Any,
+        selfie_video: Any = None,
         bucket_name: Optional[str] = None,
     ) -> Dict[Literal["front", "back", "selfie", "selfie_video"] | str, str | None]:
         """
@@ -226,7 +222,6 @@ class AWSService:
         }
 
         return self.upload_files_concurrently(
-            user_id=user_id,
             files=files,
             file_category="id_cards",
             bucket_name=bucket_name,

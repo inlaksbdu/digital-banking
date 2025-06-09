@@ -49,7 +49,6 @@ class UserAdmin(UserAdmin, ModelAdmin):
         super().save_model(request, obj, form, change)
         print("== user password: ", obj.password)
         if is_new:
-
             # You can customize the subject and message
             # send_mail(
             #     subject="Welcome to the platform!",
