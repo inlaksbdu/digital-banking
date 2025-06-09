@@ -33,6 +33,7 @@ from django.db import transaction
 from accounts.models import CustomUser
 from faker import Faker
 from django_filters import BaseInFilter, NumberFilter
+from accounts.tasks import generic_send_mail
 
 # Create your views here.
 
@@ -372,6 +373,8 @@ class TransferViewset(ModelViewSet):
                 detail="Your limit for this transaction has been exceeded"
             )
 
+        print("=== about mkae t24 post ===")
+
         try:
             if instance.transfer_type in [
                 "Other Bank Transfer",
@@ -428,6 +431,30 @@ class TransferViewset(ModelViewSet):
 
             # create a credit notificaiton to the recipeient account
             if req_status == "success":
+                print("====== transaction is succesfull")
+                # send an email for Transaction notification
+                payload = {
+                    "emailType": "transfer_notice",
+                    "body": "Transaction Alert",
+                    "subject": "Transaction Alert",
+                    "transactionId": instance.t24_reference,
+                    "amount": instance.amount,
+                    "fromAccount": instance.source_account.account_number,
+                    "toAccount": recipient_account,
+                    "recipientName": instance.recipient_name,
+                    "transferDate": instance.date_created,
+                    "transferType": instance.transfer_type,
+                    "reference": instance.purpose_of_transaction,
+                    "transferStatus": "Success",
+                    # "transactionDetailsUrl": "{{ transactionDetailsUrl }}",
+                }
+
+                generic_send_mail.delay(
+                    recipient=instance.user.email,
+                    title="Transaction Alert",
+                    payload=payload,
+                )
+
                 try:
                     recipient_account = models.BankAccount.objects.filter(
                         account_number=instance.recipient_account
