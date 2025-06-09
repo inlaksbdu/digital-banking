@@ -2,3 +2,7 @@
 [] send email notification on bill sharing requests
 [] send email notifications on bill sharing payments to initiator
 [] send email notifications on login
+[] 2FA for transactions
+[] User Management with password sent via mail
+[] customer registration on admin
+[] tranfer table with ImportExport

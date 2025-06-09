@@ -44,7 +44,7 @@ function floatchart() {
         y: {
           title: {
             formatter: function (seriesName) {
-              return 'Total Earning';
+              return 'Total Transactions';
             }
           }
         },
@@ -94,7 +94,7 @@ function floatchart() {
         y: {
           title: {
             formatter: function (seriesName) {
-              return 'Total Earning';
+              return 'Total Transactions';
             }
           }
         },
@@ -128,21 +128,18 @@ function floatchart() {
       colors: ['#d3eafd', '#2196f3', '#673ab7', '#e1d8f1'],
       series: [
         {
-          name: 'Investment',
+          name: 'Internet Banking',
           data: [35, 125, 35, 35, 35, 80, 35, 20, 35, 45, 15, 75]
         },
         {
-          name: 'Loss',
+          name: 'Mobile Banking',
           data: [35, 15, 15, 35, 65, 40, 80, 25, 15, 85, 25, 75]
         },
         {
-          name: 'Profit',
+          name: 'Coporate',
           data: [35, 145, 35, 35, 20, 105, 100, 10, 65, 45, 30, 10]
         },
-        {
-          name: 'Maintenance',
-          data: [0, 0, 75, 0, 0, 115, 0, 0, 0, 0, 150, 0]
-        }
+
       ],
       responsive: [
         {

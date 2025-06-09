@@ -1259,3 +1259,104 @@ class TravelNotice(models.Model):
 
     def __str__(self):
         return str(self.user)
+
+
+class ComplaintCategory(models.Model):
+    category_name = models.CharField()
+    resolution_sla = models.PositiveIntegerField(
+        default=0, help_text="resolution period is seconds"
+    )
+
+    date_created = models.DateTimeField(_("Created At"), auto_now_add=True)
+    last_updated = models.DateTimeField(_("Updated At"), auto_now=True)
+    uuid = models.UUIDField(unique=True, blank=True, null=True, default=uuid.uuid4)
+
+    def __str__(self):
+        return self.category_name
+
+
+class Complaint(models.Model):
+    class Priority(models.TextChoices):
+        LOW = "LOW"
+        MEDIUM = "MEDIUM"
+        HIGH = "HIGH"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING"
+        REVIEWING = "REVIEWING"
+        RESOLVED = "RESOLVED"
+        CLOSED = "CLOSED"
+        ESCALATED = "ESCALATED"
+
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        related_name="complaints",
+        null=True,
+    )
+    comp_id = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+    )
+    category = models.ForeignKey(
+        ComplaintCategory,
+        on_delete=models.SET_NULL,
+        related_name="complaints",
+        null=True,
+    )
+
+    description = models.TextField()
+    priority = models.CharField(choices=Priority.choices, max_length=20)
+
+    resolution_time = models.DurationField(null=True, blank=True)
+    status = models.CharField(choices=Status.choices, default=Status.PENDING)
+
+    assigned_to = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        related_name="assigned_complaint",
+        null=True,
+        blank=True,
+    )
+    assigned_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        related_name="assign_complaints",
+        null=True,
+        blank=True,
+    )
+
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(unique=True, blank=True, null=True, default=uuid.uuid4)
+
+    def __str__(self):
+        return str(self.description)
+
+    class Meta:
+        ordering = ["-date_created"]
+
+    def save(self, *args, **kwargs):
+        # complaint id based on complaint category and customer name
+        if not self.comp_id:
+            self.comp_id = str(self.category.category_name)[:2].upper() + str(
+                Complaint.objects.count() + 1
+            )
+        super().save(*args, **kwargs)
+
+
+class ComplaintFile(models.Model):
+    complaint = models.ForeignKey(
+        Complaint,
+        related_name="files",
+        on_delete=models.CASCADE,
+    )
+    file = models.FileField(upload_to="complaint_files/")
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    uuid = models.UUIDField(unique=True, blank=True, null=True, default=uuid.uuid4)
+    ordering = ["-date_created"]
+
+    def __str__(self):
+        return str(self.file)

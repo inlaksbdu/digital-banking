@@ -32,6 +32,7 @@ from django.db.models import Q
 from django.db import transaction
 from accounts.models import CustomUser
 from faker import Faker
+from django_filters import BaseInFilter, NumberFilter
 
 # Create your views here.
 
@@ -252,7 +253,7 @@ class BankAccountViewset(ModelViewSet):
         # Generate context for the email template
         context = {
             "bank_name": "Family Bank",
-            "logo": "https://mamicha.com/wp-content/uploads/2019/05/Mamicha-Logos-05.png",
+            "logo": "https://www.consolidated-bank.com/images/consolidated_bank_logo.png",
             "customer_name": str(request.user.fullname).upper(),
             "account_number": bank_account.account_number,
             "statements": statement,
@@ -1358,3 +1359,92 @@ class TravelNoticeViewset(ModelViewSet):
 
     def perform_create(self, serializer):
         return serializer.save(user=self.request.user)
+
+
+class NumberInFilter(BaseInFilter, NumberFilter):
+    pass
+
+
+class ComplaintFilter(djangofilters.FilterSet):
+    start_date = djangofilters.DateFilter(
+        field_name="date_created", lookup_expr="gte", required=False
+    )
+    end_date = djangofilters.DateFilter(
+        field_name="date_created", lookup_expr="lte", required=False
+    )
+    category = NumberInFilter(field_name="category", lookup_expr="in", required=False)
+
+    class Meta:
+        model = models.Complaint
+        fields = (
+            "priority",
+            "category",
+            "comp_id",
+            "status",
+        )
+
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+
+        start_date = self.data.get("start_date")
+        end_date = self.data.get("end_date")
+
+        if start_date and end_date:
+            queryset = queryset.filter(
+                date_created__gte=start_date, date_created__lte=end_date
+            )
+        elif start_date:
+            queryset = queryset.filter(date_created__gte=start_date)
+        elif end_date:
+            queryset = queryset.filter(date_created__lte=end_date)
+
+        return queryset
+
+
+@extend_schema(tags=["Complaint"])
+class ComplaintViewset(ModelViewSet):
+    queryset = models.Complaint.objects.all()
+    serializer_class = serializers.ComplaintSerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = (
+        "get",
+        "post",
+    )
+    filter_backends = (filters.SearchFilter, DjangoFilterBackend)
+    filterset_class = ComplaintFilter
+    search_fields = [
+        "priority",
+        "comp_id",
+        "status",
+    ]
+
+    def get_serializer_class(self):  # type: ignore[override]
+        if self.request.method == "POST":
+            return serializers.ComplaintCreateSerializer
+        return super().get_serializer_class()
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        files = self.request.data.getlist("files", [])
+        serializer.is_valid(raise_exception=True)
+        serializer.validated_data.pop("files")
+        instance = serializer.save(user=self.request.user)
+
+        print("=== files: ", files)
+
+        for file in files:
+            models.ComplaintFile.objects.create(
+                file=file,
+                complaint=instance,
+            )
+
+        return instance
+
+
+@extend_schema(tags=["Complaint"])
+class ComplaintCategoryViewset(ModelViewSet):
+    queryset = models.ComplaintCategory.objects.all()
+    serializer_class = serializers.ComplaintCategorySerializer
+    permission_classes = [rest_permissions.IsAuthenticated]
+    http_method_names = ("get",)
+    # filterset_fields = ("name", "customer")

@@ -692,6 +692,79 @@ class CreateVirtualCardSerializer(serializers.ModelSerializer):
         )
 
 
+class ComplaintCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ComplaintCategory
+        fields = (
+            "id",
+            "category_name",
+            "resolution_sla",
+            "date_created",
+        )
+
+
+class ComplaintFilesSerailzer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ComplaintFile
+        fields = ("file",)
+
+
+class ComplaintSerializer(serializers.ModelSerializer):
+    category_data = serializers.SerializerMethodField(read_only=True)
+    files = ComplaintFilesSerailzer(many=True, read_only=True)
+
+    upload_files = serializers.ListField(child=serializers.FileField(), write_only=True)
+
+    def get_category_data(self, obj):
+        return ComplaintCategorySerializer(obj.category).data
+
+    class Meta:
+        model = models.Complaint
+        fields = (
+            "id",
+            "user",
+            "comp_id",
+            "category",
+            "category_data",
+            "description",
+            "priority",
+            "status",
+            "files",
+            "upload_files",
+            "date_created",
+            "last_updated",
+        )
+        read_only_fields = (
+            "id",
+            "status",
+            "comp_id",
+            "user",
+            "date_created",
+            "last_updated",
+        )
+
+
+class ComplaintCreateSerializer(serializers.ModelSerializer):
+
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        required=False,
+        allow_null=True,
+    )
+
+    def to_representation(self, instance):
+        return ComplaintSerializer(instance).data
+
+    class Meta:
+        model = models.Complaint
+        fields = (
+            "category",
+            "description",
+            "priority",
+            "files",
+        )
+
+
 class VirtualCardTopUpSerializer(serializers.Serializer):
     account_number = serializers.CharField()
     amount = serializers.IntegerField()

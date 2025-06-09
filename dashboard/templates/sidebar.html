@@ -6,7 +6,7 @@
       <a href="/" class="b-brand text-primary">
         <!-- ========   Change your logo from here   ============ -->
         <!-- <img src="{% static 'images/logo-dark.svg' %}" alt="" class="logo logo-lg" /> -->
-        <img style="height: 60px;" class="logo " src="https://mamicha.com/wp-content/uploads/2019/05/Mamicha-Logos-05.png" alt="" srcset="">
+        <img style="height: 40px;" class="logo " src="https://www.consolidated-bank.com/images/consolidated_bank_logo.png" alt="" srcset="">
 
       </a>
     </div>
@@ -18,7 +18,7 @@
         </li> -->
         <li class="pc-item">
           <a href="/" class="pc-link"
-            ><span class="pc-micon"><i class="ti ti-dashboard"></i></span><span class="pc-mtext">Dashboard</span></a
+            ><span class="pc-micon"><i class="ti ti-user"></i></span><span class="pc-mtext">Dashboard</span></a
           >
         </li>
 
@@ -30,10 +30,40 @@
         {% url 'dashboard:customers' as customers_url %}
         <li class="pc-item {% if request.path == quotations_url %}active{% endif %}">
           <a href="{{ customers_url }}" class="pc-link">
-            <span class="pc-micon"><i class="ti ti-typography"></i></span>
+            <span class="pc-micon"><i class="ti ti-user"></i></span>
             <span class="pc-mtext">Customers</span>
           </a>
         </li>
+
+
+        <li class="pc-item">
+          <a href="#" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-arrows-double-sw-ne"></i></span>
+            <span class="pc-mtext">Customers Requests</span>
+          </a>
+        </li>
+
+        <li class="pc-item">
+          <a href="#" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-transaction"></i></span>
+            <span class="pc-mtext">Transactions</span>
+          </a>
+        </li>
+
+        <li class="pc-item">
+          <a href="#" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-credit-card-pay"></i></span>
+            <span class="pc-mtext">Payments</span>
+          </a>
+        </li>
+
+        <li class="pc-item">
+          <a href="#" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-chart-scatter"></i></span>
+            <span class="pc-mtext">Reports</span>
+          </a>
+        </li>
+
 
       </ul>
 
