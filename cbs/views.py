@@ -350,7 +350,6 @@ class TransferViewset(ModelViewSet):
             history_type=models.TransactionHistory.TransactionType.TRANSFER,
             date_created=timezone.now(),
         )
-        print("=== about to updated expense limit ===")
         # update expense limit if any
         celery_tasks.update_expense_limit.delay(
             account_id=instance.source_account.id,
@@ -373,13 +372,11 @@ class TransferViewset(ModelViewSet):
                 detail="Your limit for this transaction has been exceeded"
             )
 
-        print("=== about mkae t24 post ===")
-
         try:
             if instance.transfer_type in [
                 "Other Bank Transfer",
                 "International Transfer",
-                "Account to Wallet",
+                "Account To Wallet",
             ]:
                 recipient_account = settings.UNITEL_GL_ACCOUNT
             else:
@@ -431,7 +428,6 @@ class TransferViewset(ModelViewSet):
 
             # create a credit notificaiton to the recipeient account
             if req_status == "success":
-                print("====== transaction is succesfull")
                 # send an email for Transaction notification
                 payload = {
                     "emailType": "transfer_notice",
@@ -664,6 +660,29 @@ class PaymentViewset(ModelViewSet):
             )
             instance.status = req_status.title()
             instance.save()
+
+            if req_status != "Success":
+                payload = {
+                    "emailType": "transfer_notice",
+                    "body": "Payment Alert",
+                    "subject": "Payment Alert",
+                    "transactionId": instance.t24_reference,
+                    "amount": instance.amount,
+                    "fromAccount": instance.source_account.account_number,
+                    "toAccount": gl_account,
+                    "recipientName": instance.beneficiary_name,
+                    "transferDate": instance.date_created,
+                    "transferType": instance.payment_type,
+                    "reference": instance.purpose_of_transaction,
+                    "transferStatus": "Success",
+                    # "transactionDetailsUrl": "{{ transactionDetailsUrl }}",
+                }
+
+                generic_send_mail.delay(
+                    recipient=instance.user.email,
+                    title="Payment Alert",
+                    payload=payload,
+                )
             # Customize your response here
             return Response(
                 {
