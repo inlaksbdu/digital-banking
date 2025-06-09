@@ -8,7 +8,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cbs", "0009_loancategory_loanrequest_laonrequestfile"),
         ("datatable", "0004_telcodataplan"),

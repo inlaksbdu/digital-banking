@@ -14,6 +14,7 @@ urlpatterns = [
     path("i18n/", set_language, name="set_language"),
     path("accounts/", include("allauth.urls")),
     path("", include("dashboard.urls")),
+    path("ocr/", include("ocr.urls")),
     path("datatables/", include("datatable.urls")),
     path("cbs/", include("cbs.urls")),
     path("auth/", include("accounts.urls")),

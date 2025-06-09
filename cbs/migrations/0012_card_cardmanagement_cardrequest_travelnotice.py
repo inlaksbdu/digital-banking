@@ -9,7 +9,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cbs", "0011_billsharing_billsharingpyee"),
         ("datatable", "0004_telcodataplan"),

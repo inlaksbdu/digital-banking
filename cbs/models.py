@@ -369,7 +369,6 @@ class BankStatement(models.Model):
 
 
 class Beneficiary(models.Model):
-
     class BeneficiaryType(models.TextChoices):
         AIRTME = "Airtime"
         DATA = "Data"
@@ -443,7 +442,6 @@ class Beneficiary(models.Model):
 
 
 class StandingOrder(models.Model):
-
     class StandingOrderType(models.TextChoices):
         OWN_ACCOUNT_TRANSFER = "Airtime"
         SAME_BANK = "Same Bank"
@@ -526,7 +524,6 @@ class StandingOrder(models.Model):
 
 
 class ChequeRequest(models.Model):
-
     class ChequeLeaves(models.TextChoices):
         TEN = "10 LEAVES"
         TWENTY_FIVE = "25 LEAVES"
@@ -615,7 +612,6 @@ class LoanCategory(models.Model):
 
 
 class LoanRequest(models.Model):
-
     class ReqeustStatus(models.TextChoices):
         PENDING = "PENDING"
         REVIEWING = "REVIEWING"
@@ -977,7 +973,6 @@ class BillSharing(models.Model):
 
 
 class BillSharingPyee(models.Model):
-
     class Status(models.TextChoices):
         PENDING = "PENDING"
         PAID = "PAID"

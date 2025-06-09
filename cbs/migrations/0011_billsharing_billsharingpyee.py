@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cbs", "0010_appointmentbooking_cardlesswithdrawal_emailindemnity_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

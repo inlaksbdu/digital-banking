@@ -8,7 +8,6 @@ from datatable.models import SecurityQuestion
 
 
 class CustomUser(AbstractUser):
-
     fullname = models.CharField(max_length=100, null=True, blank=True)
     # AUTHENTICATION
     email = models.EmailField(_("email address"), unique=True, db_index=True)
@@ -26,7 +25,7 @@ class CustomUser(AbstractUser):
     deactivated_account = models.BooleanField(default=False)
 
     def __str__(self):
-        return "{}:{}".format(self.fullname, self.phone_number)
+        return self.fullname or self.username
 
     def save(self, *args, **kwargs):
         if not self.fullname:
@@ -35,7 +34,6 @@ class CustomUser(AbstractUser):
 
 
 class CustomerProfile(models.Model):
-
     class Gender(models.TextChoices):
         MALE = "Male"
         FEMALE = "Female"

@@ -22,7 +22,6 @@ class T24Requests:
 
     @staticmethod
     def health_check():
-
         url = f"{base_url}/party/getGtCustomerInfo"
         headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
         params = {"customerNumber": str(208)}
@@ -52,7 +51,6 @@ class T24Requests:
 
     @staticmethod
     def get_customer_info_with_phone(phone_number):
-
         url = f"{base_url}/party/getGtCustomerInfo"
         headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
         formated_phone_number = str(phone_number).replace("+", "")
@@ -488,7 +486,6 @@ class T24Requests:
 
     @staticmethod
     def get_customer_dob_phone(phone_number):
-
         url = f"{base_url}/party/getGtCustomerInfo"
         headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
         formated_phone_number = str(phone_number).replace("+", "")
@@ -614,7 +611,6 @@ class T24Requests:
 
     @staticmethod
     def commit_cash_deposit(body, reference):
-
         url = f"{base_url}/party/createCashDepositLocal/{reference}"
         headers = {"Content-Type": "application/json", "companyId": "ST0010002"}
         response = requests.post(url, headers=headers, json=json.dumps({"body": body}))

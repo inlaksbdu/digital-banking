@@ -42,7 +42,6 @@ class UserProfileView(GenericAPIView):
 
 @extend_schema(tags=["Signup New Customer"])
 class SignUpNewCustomerValidationView(CreateAPIView):
-
     serializer_class = serializers.SignUpNewCustomerValidationSerializer
 
     def post(self, request, *args, **kwargs):
@@ -85,7 +84,6 @@ class SignUpNewCustomerValidationView(CreateAPIView):
 
 @extend_schema(tags=["Signup New Customer"])
 class SignUpNewCustomerVerifyView(CreateAPIView):
-
     serializer_class = serializers.SignUpNewCustomerVerifySerializer
 
     def post(self, request, *args, **kwargs):
@@ -134,7 +132,6 @@ class SignUpNewCustomerVerifyView(CreateAPIView):
 
 @extend_schema(tags=["Signup New Customer"])
 class SignUpNewCustomerView(CreateAPIView):
-
     serializer_class = serializers.SignUpNewCustomerSerializer
 
     @transaction.atomic
@@ -191,7 +188,6 @@ class SignUpNewCustomerView(CreateAPIView):
                         answer_hash=make_password(sec_qtn.get("answer")),
                     )
             except Exception as e:
-
                 logger.error(f"ERROR setting security questions {e}")
 
         user_account.save()
@@ -235,7 +231,6 @@ class SignUpNewCustomerView(CreateAPIView):
 
 @extend_schema(tags=["Signup Existing Customer"])
 class SignUpExistingEmailAccountValidationView(CreateAPIView):
-
     serializer_class = (
         serializers.SignUpExistingCustomerEmailAccountValidationSerializer
     )
@@ -268,7 +263,6 @@ class SignUpExistingEmailAccountValidationView(CreateAPIView):
 
 @extend_schema(tags=["Signup Existing Customer"])
 class SignUpExistingVerifyView(CreateAPIView):
-
     serializer_class = serializers.SignUpExistingCustomerVerifySerializer
 
     def post(self, request, *args, **kwargs):
@@ -297,7 +291,6 @@ class SignUpExistingVerifyView(CreateAPIView):
 
 @extend_schema(tags=["Signup Existing Customer"])
 class SignUpExistingCustomerView(CreateAPIView):
-
     serializer_class = serializers.SignUpExistingCustomerSerializer
 
     @transaction.atomic
@@ -348,7 +341,6 @@ class SignUpExistingCustomerView(CreateAPIView):
                         answer_hash=make_password(sec_qtn.get("answer")),
                     )
             except Exception as e:
-
                 logger.error(f"ERROR setting security questions {e}")
 
         user_account.save()

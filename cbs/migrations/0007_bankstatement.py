@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("cbs", "0006_payment_data_plan"),
         ("datatable", "0004_telcodataplan"),
