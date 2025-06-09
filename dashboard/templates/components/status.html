@@ -1,0 +1,7 @@
+{% if status == 'Pending' %}
+<span class="badge bg-warning">Pending</span>
+{% elif status == 'Success' %}
+<span class="badge bg-success">Success</span>
+{% elif status == 'Failed' %}
+<span class="badge bg-danger">Failed</span>
+{% endif %}

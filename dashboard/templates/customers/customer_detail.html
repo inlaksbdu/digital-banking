@@ -28,7 +28,7 @@
             role="tab"
             aria-selected="false"
             tabindex="-1"
-            >Billing</a
+            >Account & Cards</a
           >
         </li>
         <li class="nav-item" role="presentation">
@@ -52,7 +52,7 @@
             role="tab"
             aria-selected="false"
             tabindex="-1"
-            >Notifications</a
+            >Recent Transactions</a
           >
         </li>
       </ul>
@@ -146,7 +146,7 @@
                         />
                       </div>
                     </div>
-                    <div class="col-sm-6">
+                    <div class="col-sm-12">
                       <button class="btn btn-primary">Change Details</button>
                     </div>
                   </div>
@@ -161,68 +161,69 @@
           role="tabpanel"
           aria-labelledby="profile-tab-2"
         >
-          <div class="row">
-            <div class="col-md-6 col-lg-4">
-              <div class="card bg-light-danger overflow-hidden">
-                <div class="card-body border-start border-5 border-danger">
-                  <p class="mb-0 text-muted">Bill Due</p>
-                  <h2>$150.00</h2>
-                  <a href="#" class="link-danger f-w-600"
-                    >Pay Now
-                    <i class="ti ti-arrow-narrow-right f-20 align-bottom"></i
-                  ></a>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-6 col-lg-4">
-              <div class="card bg-light-warning overflow-hidden">
-                <div class="card-body border-start border-5 border-warning">
-                  <p class="mb-0 text-muted">Total Credits</p>
-                  <h2>1570 GB</h2>
-                  <a href="#" class="link-warning f-w-600"
-                    >Full Report
-                    <i class="ti ti-arrow-narrow-right f-20 align-bottom"></i
-                  ></a>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-12 col-lg-4">
-              <div class="card bg-light-success overflow-hidden">
-                <div class="card-body border-start border-5 border-success">
-                  <p class="mb-0 text-muted">Plan</p>
-                  <h2>Basic</h2>
-                  <a href="#" class="link-success f-w-600"
-                    >Upgrade?
-                    <i class="ti ti-arrow-narrow-right f-20 align-bottom"></i
-                  ></a>
-                </div>
+
+
+         <div class="row">
+
+                   <div class="col-md-6">
+           <div class="card border">
+            <div class="card-header"><h5>Accounts</h5></div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Account Number</th>
+                      <th>Account Name</th>
+                      <th>Currency</th>
+                      <th>Account Category</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+
+                    {% for bank_account in customer.user_account.bank_accounts.all %}
+                    <tr>
+                      <td>{{ forloop.counter }}</td>
+                      <td>{{ bank_account.account_number }}</td>
+                      <td>{{ bank_account.account_name }}</td>
+                      <td>{{ bank_account.currency }}</td>
+                      <td>{{ bank_account.account_category }}</td>
+                      <td>
+                        <span class="badge bg-light-success">Active</span>
+                      </td>
+                    </tr>
+                    {% endfor %}
+
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
-          <div class="card border">
+         </div>
+
+          <div class="col-md-6">
+           <div class="card border">
             <div class="card-header">
               <div class="row align-items-center">
-                <div class="col-6"><h5>Payment Methods</h5></div>
+                <div class="col-6"><h5>Cards</h5></div>
                 <div class="col-6 text-end">
-                  <button class="btn btn-primary">Upload Avatar</button>
+                  <!-- <button class="btn btn-primary">Upload Avatar</button> -->
                 </div>
               </div>
             </div>
             <div class="card-body">
               <ul class="list-group list-group-flush">
+
+                {% for card in customer.user_account.cards.all %}
                 <li class="list-group-item px-0">
                   <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                      <img
-                        class="img-fluid wid-65"
-                        src="../assets/images/application/card-visa.png"
-                        alt="User image"
-                      />
-                    </div>
+
                     <div class="flex-grow-1 mx-3">
-                      <h5 class="mb-0">Visa card</h5>
+                      <h5 class="mb-0">{{ card.card_scheme }}</h5>
                       <small class="text-muted mb-0"
-                        >Ending in 5269 07XX XXXX 8110</small
+                        >{{ card.card_number }}</small
                       >
                     </div>
                     <div class="flex-shrink-0">
@@ -231,115 +232,23 @@
                           <a
                             href="#"
                             class="badge btn-light-primary rounded-pill text-base"
-                            >Default</a
+                            >{{ card.card_form }}</a
                           >
                         </li>
-                        <li class="list-inline-item opacity-25">|</li>
-                        <li class="list-inline-item">
-                          <a href="#" class="link-primary">Edit</a>
-                        </li>
+
                       </ul>
                     </div>
                   </div>
                 </li>
-                <li class="list-group-item px-0">
-                  <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                      <img
-                        class="img-fluid wid-65"
-                        src="../assets/images/application/card-discover.png"
-                        alt="User image"
-                      />
-                    </div>
-                    <div class="flex-grow-1 mx-3">
-                      <h5 class="mb-0">Discover</h5>
-                      <small class="text-muted mb-0"
-                        >Ending in 6109 07XX XXXX 8020</small
-                      >
-                    </div>
-                    <div class="flex-shrink-0">
-                      <ul class="list-inline mb-0">
-                        <li class="list-inline-item">
-                          <a href="#" class="link-secondary">Make Default</a>
-                        </li>
-                        <li class="list-inline-item opacity-25">|</li>
-                        <li class="list-inline-item">
-                          <a href="#" class="link-primary">Edit</a>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </li>
-                <li class="list-group-item px-0">
-                  <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                      <img
-                        class="img-fluid wid-65"
-                        src="../assets/images/application/card-master.png"
-                        alt="User image"
-                      />
-                    </div>
-                    <div class="flex-grow-1 mx-3">
-                      <h5 class="mb-0">Mastercard</h5>
-                      <small class="text-muted mb-0"
-                        >Ending in 7278 07XX XXXX 4290</small
-                      >
-                    </div>
-                    <div class="flex-shrink-0">
-                      <ul class="list-inline mb-0">
-                        <li class="list-inline-item">
-                          <a href="#" class="link-secondary">Make Default</a>
-                        </li>
-                        <li class="list-inline-item opacity-25">|</li>
-                        <li class="list-inline-item">
-                          <a href="#" class="link-primary">Edit</a>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </li>
+                {% endfor %}
+
               </ul>
             </div>
           </div>
-          <div class="card border">
-            <div class="card-header"><h5>Billing History</h5></div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Order No.</th>
-                      <th>Date</th>
-                      <th>Price</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>12877227695</td>
-                      <td>26 Feb 2021 9:16 am</td>
-                      <td>$56.32</td>
-                      <td>
-                        <span class="badge bg-light-warning">Awaiting</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>12901477937</td>
-                      <td>30 Jan 2021 2:54 pm</td>
-                      <td>$75.56</td>
-                      <td><span class="badge bg-light-success">Paid</span></td>
-                    </tr>
-                    <tr>
-                      <td>12767886919</td>
-                      <td>22 Jan 2021 12:01 pm</td>
-                      <td>$34.23</td>
-                      <td><span class="badge bg-light-success">Paid</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+         </div>
+
+
+         </div>
         </div>
         <div
           class="tab-pane"
@@ -348,9 +257,10 @@
           aria-labelledby="profile-tab-3"
         >
           <div class="row">
-            <div class="col-md-8 col-xxl-9">
+
+            <div class="col-md-4">
               <div class="card border">
-                <div class="card-header"><h5>Change Password</h5></div>
+                <div class="card-header"><h5>Password</h5></div>
                 <div class="card-body">
                   <div class="row">
                     <div class="col-sm-12">
@@ -360,51 +270,99 @@
                           type="password"
                           class="form-control"
                           placeholder="Current password"
+                          value="{{ customer.user_account.password }}"
+                          disabled
                         />
                       </div>
                     </div>
-                    <div class="col-sm-6">
-                      <div class="mb-3">
-                        <label class="form-label">New Password</label>
-                        <input
-                          type="password"
-                          class="form-control"
-                          placeholder="New Password"
-                        />
-                      </div>
-                    </div>
-                    <div class="col-sm-6">
-                      <div class="mb-3">
-                        <label class="form-label">Re-enter New Password</label>
-                        <input
-                          type="password"
-                          class="form-control"
-                          placeholder="Re-enter New Password"
-                        />
-                      </div>
-                    </div>
-                    <div class="col-sm-6">
-                      <button class="btn btn-primary">Change Password</button>
+
+                    <div class="col-sm-12">
+                      <button
+            type="button"
+            class="btn btn-info block"
+            data-bs-toggle="modal"
+            data-bs-target="#passwordResetLink"
+            >Send Reset Link</button >
+
+            <button
+            type="button"
+            class="btn btn-outline-primary block"
+            data-bs-toggle="modal"
+            data-bs-target="#temporaryPassword"
+            >  Send Temporary Password</button >
+
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="col-md-4 col-xxl-3">
+
+            <div class="col-md-4">
               <div class="card border">
-                <div class="card-header"><h5>Delete Account</h5></div>
+                <div class="card-header"><h5>Secure PIN</h5></div>
                 <div class="card-body">
-                  <p>
-                    To deactivate your account, first delete its resources. If
-                    you are the only owner of any teams, either assign another
-                    owner or deactivate the team.
-                  </p>
-                  <button class="btn btn-outline-danger">
-                    Change Password
-                  </button>
+                  <div class="row">
+                    <div class="col-sm-12">
+                      <div class="mb-3">
+                        <label class="form-label">Current PIN </label>
+                        <input
+                          type="password"
+                          class="form-control"
+                          placeholder="Current password"
+                          value="{{ customer.user_account.secure_pin   }}"
+                          disabled
+                        />
+                      </div>
+                    </div>
+
+                    <div class="col-sm-12">
+                      <button
+
+      type="button"
+      class="btn btn-primary"
+      data-bs-toggle="modal"
+      data-bs-target="#pinResetLink"
+
+      > Reset PIN </button>
+                      <!-- <button class="btn btn-info">Send Reset Passwrd Link</button> -->
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {% if customer.user_account.deactivated_account %}
+            <div class="col-md-4">
+              <div class="card border">
+                <div class="card-header"><h5>Activate Account </h5></div>
+                <div class="card-body">
+                  <p>
+                    To activate this account, you are required to get approval.
+                  </p>
+                  <a class="btn btn-outline-success" href="{% url 'dashboard:customer-account-activation' customer.user_account.uuid %}">
+                    Activate
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% else %}
+            <div class="col-md-4">
+              <div class="card border">
+                <div class="card-header"><h5>Deactivate Account</h5></div>
+                <div class="card-body">
+                  <p>
+                    To deactivate this account, you are required to get approval.
+                  </p>
+                  <a class="btn btn-outline-danger" href="{% url 'dashboard:customer-account-deactivation' customer.user_account.uuid %}">
+                    Deactivate
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+
+
           </div>
         </div>
         <div
@@ -413,88 +371,175 @@
           role="tabpanel"
           aria-labelledby="profile-tab-4"
         >
-          <div class="row">
-            <div class="col-md-8 col-xxl-9">
-              <div class="card border">
-                <div class="card-header">
-                  <h5>Subscription Preference Center</h5>
-                </div>
-                <div class="card-body">
-                  <h5 class="mb-4">I would like to receive:</h5>
-                  <div class="form-check mb-3">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      value=""
-                      id="ckeckall1"
-                      checked="checked"
-                    />
-                    <label class="form-check-label" for="ckeckall1"
-                      >Product Announcements and Updates</label
-                    >
-                  </div>
-                  <div class="form-check mb-3">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      value=""
-                      id="ckeckall2"
-                      checked="checked"
-                    />
-                    <label class="form-check-label" for="ckeckall2"
-                      >Events and Meetups</label
-                    >
-                  </div>
-                  <div class="form-check mb-3">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      value=""
-                      id="ckeckall3"
-                      checked="checked"
-                    />
-                    <label class="form-check-label" for="ckeckall3"
-                      >User Research Surveys</label
-                    >
-                  </div>
-                  <div class="form-check mb-3">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      value=""
-                      id="ckeckall4"
-                    />
-                    <label class="form-check-label" for="ckeckall4"
-                      >Hatch Startup Program</label
-                    >
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-4 col-xxl-3">
-              <div class="card border">
-                <div class="card-header"><h5>Opt me out instead</h5></div>
-                <div class="card-body">
-                  <div class="form-check mb-3">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      value=""
-                      id="ckeckall"
-                      checked="checked"
-                    />
-                    <label class="form-check-label" for="ckeckall"
-                      >Unsubscribe me from all of the above</label
-                    >
-                  </div>
-                  <button class="btn btn-primary">Update my preferences</button>
-                </div>
-              </div>
+
+
+          <div class="p-4">
+
+              <div class="table-responsive pt-4">
+            <div class="col-sm-12">
+              <table class="table table-striped table-hover dataTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th class="text-align-left">REF</th>
+                    <th class="text-align-left">Debit Account</th>
+                    <th class="text-align-left">Recipient Account</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Transfer Type</th>
+                    <th class="text-align-right">Date</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for transfer in recent_transactions %}
+                  <tr style=" height: 10px !important;">
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-align-left">
+                      {{ transfer.reference }} </a>
+                    </td>
+                    <td>{{ transfer.source_account }}</td>
+                    <td>{{ transfer.recipient_account }}</td>
+                    <td>STN {{ transfer.amount }}</td>
+                    <td>
+                        {% with status=transfer.status %}
+                            {% include 'components/status.html' %}
+                        {% endwith %}
+                    </td>
+
+                    <td>{{ transfer.transfer_type }}</td>
+                    <td>{{ transfer.date_created }}</td>
+                    <td>
+                      <a href="{% url 'dashboard:transfer-requests-detail' transfer.uuid %}">View</a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
           </div>
+
+          </div>
+
+
         </div>
       </div>
     </div>
   </div>
 </div>
+
+
+<div
+  class="modal fade text-left model-lg"
+  id="pinResetLink"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="myModalLabel5"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="myModalLabel3">Confirm PIN Reset</h5>
+        <button
+          type="button"
+          class="close rounded-pill"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+          <i data-feather="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to send PIN reset Link?</p>
+        <br>
+        <a class="btn btn-primary" href="{% url 'dashboard:send-pin-reset-link' customer.user_account.uuid %}">Send Link</a>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" data-bs-dismiss="modal">
+          <i class="bx bx-x d-block d-sm-none"></i>
+          <span class="d-none d-sm-block">Close</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<div
+  class="modal fade text-left model-lg"
+  id="passwordResetLink"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="myModalLabel3"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="myModalLabel3">Confirm Password Reset</h5>
+        <button
+          type="button"
+          class="close rounded-pill"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+          <i data-feather="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to send password reset Link?</p>
+        <br>
+        <a class="btn btn-primary" href="{% url 'dashboard:send-password-reset-link' customer.user_account.uuid %}">Send Link</a>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" data-bs-dismiss="modal">
+          <i class="bx bx-x d-block d-sm-none"></i>
+          <span class="d-none d-sm-block">Close</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div
+  class="modal fade text-left model-lg"
+  id="temporaryPassword"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="myModalLabel4"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="myModalLabel3">Confirm Temporary Password Reset</h5>
+        <button
+          type="button"
+          class="close rounded-pill"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+          <i data-feather="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to send temporary password reset to this customer?</p>
+        <br>
+        <a class="btn btn-primary" href="{% url 'dashboard:send-temporary-password' customer.user_account.uuid %}">Send Temporary Password</a>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" data-bs-dismiss="modal">
+          <i class="bx bx-x d-block d-sm-none"></i>
+          <span class="d-none d-sm-block">Close</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
 {% endblock content %}

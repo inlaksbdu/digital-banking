@@ -1,0 +1,186 @@
+{% extends 'core_base.html' %} {% load crispy_forms_tags %} {% block content %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-header justify-content-between d-flex">
+        <h4 class="card-title">Issue Corporate Account</h4>
+      </div>
+      <div class="card-body">
+        <div class="p-2">
+          <form method="post">
+            {% csrf_token %}
+
+            {{ corporate_form | crispy }}
+
+            <div class="pt-3">
+                <small class="text-primary">SUPERVISOR INFO</small>
+                <hr>
+                {{ user_form | crispy }}
+            </div>
+
+            <div class="pt-3">
+                <small class="text-primary">PERMISSIONS</small>
+                <hr>
+                {{ permissions_form | crispy }}
+            </div>
+
+            <div class="pt-4">
+              <input
+                type="submit"
+                class="btn btn-md btn-primary"
+                value="Save"
+              />
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="col-md-6">
+    <div class="card">
+      <div
+        class="card-header text-center align-items-center justify-content-center  bg-light-primary"
+      >
+        <h6>Request Detail</h6>
+        <small class="text-muted">{{ account_request.date_created }}</small>
+      </div>
+
+      <div class="card-body pt-4">
+
+        <hr />
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">COMPANY INFO</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Name</label>
+              <p class="form-control-static">
+                {{ account_request.company_name }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Email</label>
+              <p class="form-control-static">{{ account_request.company_email }}</p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Phone Number</label>
+              <p class="form-control-static">
+                {{ account_request.company_phone_number }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Address</label>
+              <p class="form-control-static">
+                {{ account_request.company_address }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <hr />
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">ACCOUNT DETAIL</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Corporate Account #</label>
+              <p class="form-control-static">
+                {{ account_request.corporate_account_number }}
+              </p>
+            </div>
+          </div>
+
+        </div>
+        <hr />
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">PERSONAL INFO</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Full Name</label>
+              <p class="form-control-static">{{ account_request.first_name }} {{ account_request.last_name }} </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Phone Number</label>
+              <p class="form-control-static">
+                {{account_request.phone_number }}
+              </p>
+            </div>
+          </div>
+          <hr />
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted"></small>
+          </div>
+        </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Last Updated</label>
+              <p class="form-control-static">{{ account_request.last_updated }}</p>
+            </div>
+          </div>
+         <hr>
+          <div class="row">
+            <div class="col-md-12">
+              <small class="text-muted">RELEVANT DOCUMENT</small>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover table-sm">
+                  <thead>
+                      <tr>
+                        <th></th>
+                        <th></th>
+                      </tr>
+                  </thead>
+
+                  <tbody>
+                      {% for file in account_request.files.all %}
+                      <tr>
+                          <td>
+                              <a href="{{ file.file.url }}" target="_blank">
+                                <p class="font-bold ms-3 mb-0">
+                                  {{ file.file_name }}
+                                </p>
+                              </a>
+
+                          </td>
+                          <td class="col-auto">
+                              <a download="{{ file.file }}" href="{{ file.file.url }}" class=" mb-0">
+                                <i class="bi bi-box-arrow-in-down"></i>
+                              </a>
+                          </td>
+                      </tr>
+                      {% empty %}
+                      <p class="text-danger">No file uploaded </p>
+                      {% endfor %}
+
+                  </tbody>
+              </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

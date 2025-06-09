@@ -1,0 +1,65 @@
+{% extends 'core_base.html' %} {% block content %}
+
+<div class="card">
+  <div class="card-header bg-header">
+    <h4 class="card-title">Transaction</h4>
+  </div>
+  <div class="card-body">
+    <div
+      id="basic-datatables_wrapper"
+      class="dataTables_wrapper container-fluid dt-bootstrap4"
+    >
+      <div class="col-md-12">
+
+      </div>
+
+      <div class="table-responsive">
+        <div class="col-sm-12">
+          <table  class="table table-striped table-hover dataTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th class="text-align-left">REF</th>
+                <th class="text-align-left">Debit Account</th>
+                <th class="text-align-left">Beneficiary</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Payment Type</th>
+                <th class="text-align-right">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for payment in payments %}
+              <tr style=" height: 10px !important;">
+                <td>{{ forloop.counter }}</td>
+                <td class="text-align-left">
+                  <a href="{% url 'dashboard:payment-detail' payment.uuid %}"> {{ payment.reference }} </a>
+                </td>
+                <td>{{ payment.source_account }}</td>
+                <td>
+                  {% if payment.payment_type in 'Airtime,Data' %}
+                  {{ payment.beneficiary }}
+                  {% else %}
+                  {{ payment.biller }}
+                  {% endif %}
+                </td>
+                <td>STN {{ payment.amount }}</td>
+                <td>
+                    {% with status=payment.status %}
+                        {% include 'components/status.html' %}
+                    {% endwith %}
+                </td>
+
+                <td>{{ payment.payment_type }}</td>
+                <td>{{ payment.date_created }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

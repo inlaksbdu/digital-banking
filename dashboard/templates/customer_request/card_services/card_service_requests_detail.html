@@ -1,0 +1,230 @@
+{% extends 'core_base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<section class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div
+        class="card-header text-center align-items-center justify-content-center {% if card_request.status == 'PENDING' %} bg-light-warning {% elif card_request.status == 'REJECTED' %} bg-light-danger {% elif card_request.status == 'FAILED' %} bg-light-danger {% elif card_request.status == 'COMPLETED' %}bg-light-success{% elif card_request.status == 'PROCESSING' %}bg-light-primary {% endif %}"
+      >
+        <h6>{{ card_request.status }}</h6>
+        <h2 class="pt-1">{{ card_request.card_service_type }}</h2>
+        <small class="text-muted">{{ card_request.date_created }}</small>
+      </div>
+
+      <div class="card-body pt-4">
+        <!-- Customer Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">CUSTOMER INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-2">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer ID</label>
+              <p class="form-control-static">
+                {{ card_request.user.customer_profile.t24_customer_id }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer Name</label>
+              <p class="form-control-static">
+                {{ card_request.user.fullname }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Phone Number</label>
+              <p class="form-control-static">
+                {{ card_request.user.phone_number }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <hr />
+
+        <!-- Account Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">ACCOUNT INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Account #</label>
+              <p class="form-control-static">
+                {{ card_request.source_account.account_number }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Product Type</label>
+              <p class="form-control-static">{{ card_request.source_account.product_type|default:"Current Account" }}</p>
+            </div>
+          </div>
+          {% if card_request.request_debit_account %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Debit Account</label>
+              <p class="form-control-static">
+                {{ card_request.request_debit_account }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <hr />
+
+        <!-- Card Service Details Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">CARD SERVICE DETAILS</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Request Type</label>
+              <p class="form-control-static">
+                {{ card_request.card_service_type }}
+              </p>
+            </div>
+          </div>
+
+          {% if card_request.card_type %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Card Type</label>
+              <p class="form-control-static">
+                {{ card_request.card_type }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if card_request.card_number %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Card Number</label>
+              <p class="form-control-static">
+                {{ card_request.card_number }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+
+
+          <!-- Delivery Information Section -->
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Delivery Address</label>
+              <p class="form-control-static">
+                {{ card_request.address }}
+              </p>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Pick-Up Branch</label>
+              <p class="form-control-static">
+                {{ card_request.branch.name }}
+              </p>
+            </div>
+          </div>
+
+          {% if card_request.reason %}
+          <div class="col-md-12">
+            <div class="form-group">
+              <label for="disabledInput">Reason</label>
+              <p class="form-control-static">
+                {{ card_request.reason }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+
+
+        {% if card_request.comments %}
+        <div class="row pt-3">
+          <div class="col-md-12">
+            <div class="form-group">
+              <label for="disabledInput">Comments</label>
+              <p class="form-control-static">
+                {{ card_request.comments }}
+              </p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        <hr />
+
+        <!-- Status Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">STATUS INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Date Created</label>
+              <p class="form-control-static">
+                {{ card_request.date_created }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Last Updated</label>
+              <p class="form-control-static">{{ card_request.last_updated }}</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 text-right">
+
+    <div class="card">
+        <div class="card-body">
+            <h5>Notify Customer</h5>
+            {% if  card_request.status == 'PENDING'  or card_request.status == 'PROCESSING' %}
+
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                {{ change_status_form | crispy }}
+              <div>
+                <input type="submit" class="btn btn-md btn-success" value="Notify Customer">
+              </div>
+            </form>
+            <br>
+
+            {% else %}
+            <p>Customer has already been notified</p>
+            <br>
+            <h6>Comments</h6>
+            <p>{{ card_request.comments }}</p>
+            {% endif %}
+            <br>
+
+        </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

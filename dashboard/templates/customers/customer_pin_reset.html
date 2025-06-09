@@ -1,0 +1,76 @@
+{% extends 'auth_base.html' %} {% load static %} {% load crispy_forms_tags %}
+{% block content %} {% if link_expired %}
+<div id="error">
+  <div class="error-page container">
+    <div class="col-md-8 col-12 offset-md-2 text-center">
+      <img
+        style="width: 600px"
+        class="img-error"
+        src="{% static 'images/samples/error-403.png' %}"
+        alt="Not Found"
+      />
+      <div class="text-center">
+        <h1 class="error-title">Link Expired</h1>
+        <p class="fs-5 text-gray-600">
+          Your PIN reset link is expired please contact your Bank <br />or walk
+          to the nearest branch.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+
+{% if status %}
+<div class="container d-flex justify-content-center align-items-center">
+    <div class="col-md-12 p-4">
+        <div>
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %} alert-danger {% else %}alert-success{% endif %} alert-dismissible show fade">
+                    {{ message }} {{ message.tags }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="container d-flex justify-content-center align-items-center">
+    <div class="col-md-12 p-4">
+        <div>
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %} alert-danger {% else %}alert-success{% endif %} alert-dismissible show fade">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+      <div class="card">
+        <div class="card-header">
+          <h4>Reset PIN</h4>
+        </div>
+        <div class="card-body">
+          <div>
+            <form method="post">
+              {% csrf_token %} {{ password_reset_form | crispy }}
+
+              <div>
+                <input
+                  type="submit"
+                  value="Reset PIN"
+                  class="btn btn-danger btn-md"
+                />
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+{% endif %}
+
+{% endif %} {% endblock %}

@@ -1,0 +1,294 @@
+{% extends 'core_base.html' %} {% load static %} {% block content %}
+
+<div class="row">
+  <div class="col-md-12 flex d-flex justify-content-between">
+    <!-- <h4>
+      <span class="text-muted">Account Requested:
+
+      </span> {{ account_request.account_type }}
+    </h4>
+
+    <div>
+      <button
+        type="button"
+        class="btn btn-danger getting block"
+        data-bs-toggle="modal"
+        data-bs-target="#deactivate"
+      >
+        Reject Request
+      </button>
+
+      <a
+        type="button"
+        class="btn btn-primary"
+        data-bs-toggle="modal"
+        data-bs-target="#pinResetLink"
+      >
+        Approve & Issue Account
+      </a>
+    </div> -->
+  </div>
+</div>
+
+<div class="row pt-3">
+  <div class="card shadow-none">
+    <!-- <div class="card-header bg-header">
+      <h4 class="card-title">Customer Detail</h4>
+    </div> -->
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-2">
+          <div class="border">
+            <img
+              {% if account_request.user.profile.profile_picture  %}
+              src="{{ account_request.user.profile.profile_picture.url }}"
+              {% else %}
+              src="{% static 'img/jm_denis.jpg' %}"
+              {% endif %}
+              alt="image not found"
+              class="avatar-img rounded"
+              style="width: 100%; height: 200px; object-fit: contain"
+            />
+          </div>
+        </div>
+
+        <div class="col-md-10 px-5">
+          <div class="row">
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="disabledInput">Name</label>
+                <p class="form-control-static">
+                  {{ account_request.user.fullname }}
+                </p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="disabledInput">Phone Number</label>
+                <p class="form-control-static">
+                  {{ account_request.user.phone_number }}
+                </p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="disabledInput">Date of Birth</label>
+                <p class="form-control-static">
+                  {{ account_request.user.profile.date_of_birth }}
+                </p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="disabledInput">Gender</label>
+                <p class="form-control-static">
+                  {{ account_request.user.profile.gender }}
+                </p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="disabledInput">Preferred Language</label>
+                <p class="form-control-static">
+                  {{ account_request.user.preferred_language }}
+                </p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="disabledInput">Nationality</label>
+                <p class="form-control-static">
+                  {{ account_request.user.profile.nationality }}
+                </p>
+              </div>
+            </div>
+
+            <div class="col-md-3">
+              <div class="form-group">
+                <label for="disabledInput">Address</label>
+                <p class="form-control-static">
+                  {{ account_request.user.profile.address }}
+                </p>
+              </div>
+            </div>
+
+            <div class="row pt-4">
+              <div class="col-md-12">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h6 class="modal-titled">Identification Detail</h6>
+                  </div>
+                  <div class="modal-body">
+                    {% for id in account_request.user.id_cards.all %}
+                    <div class="row">
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label for="disabledInput">ID Type</label>
+                          <p class="form-control-static">{{ id.id_type }}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label for="disabledInput">ID Number</label>
+                          <p class="form-control-static">{{ id.id_number }}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label for="disabledInput">Issue Date</label>
+                          <p class="form-control-static">{{ id.issue_date }}</p>
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="form-group">
+                          <label for="disabledInput">Expiry Date</label>
+                          <p class="form-control-static">
+                            {{ id.expiry_date }}
+                          </p>
+                        </div>
+                      </div>
+                      <div class="col-md-4 mt-3">
+                        <div class="form-group">
+                          <label for="disabledInput">ID Front Image</label>
+                          <p class="form-control-static">
+                            {% if id.front_image %}
+                            <img
+                              style="width: 100%"
+                              src="{{ id.front_image.url }}"
+                              alt=""
+                            />
+                            {% endif %}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="col-md-4 mt-3">
+                        <div class="form-group pl-4">
+                          <label for="disabledInput">ID Back Image</label>
+                          <p class="form-control-static">
+                            {% if id.front_image %}
+
+                            <img
+                              style="width: 100%"
+                              src="{{ id.front_image.url }}"
+                              alt=""
+                            />
+                            {% endif %}
+
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    {% empty %}
+                    <p>No Data Found</p>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row pt-4">
+              <div class="col-md-12">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h6 class="modal-titled">Employment Detail</h6>
+                  </div>
+                  <div class="modal-body">
+                    <div class="modal-body">
+                      {% for employment in account_request.user.employment_data.all %}
+                      <div class="row">
+                        <div class="col-md-3">
+                          <div class="form-group">
+                            <label for="disabledInput">Status</label>
+                            <p class="form-control-static">
+                              {{ employment.employment_status }}
+                            </p>
+                          </div>
+                        </div>
+                        <div class="col-md-3">
+                          <div class="form-group">
+                            <label for="disabledInput">Occupation</label>
+                            <p class="form-control-static">
+                              {{ employment.occupation }}
+                            </p>
+                          </div>
+                        </div>
+                        <div class="col-md-3">
+                          <div class="form-group">
+                            <label for="disabledInput">Employer Name</label>
+                            <p class="form-control-static">
+                              {{ employment.employer_name }}
+                            </p>
+                          </div>
+                        </div>
+                        <div class="col-md-3">
+                          <div class="form-group">
+                            <label for="disabledInput">Monthly Income</label>
+                            <p class="form-control-static">
+                              {{ employment.monthly_income }}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {% empty %}
+                      <p>No Data Found</p>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div
+  class="modal fade text-left"
+  id="deactivate"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="myModalLabel2"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Enter Password</h5>
+        <button
+          type="button"
+          class="close rounded-pill"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        >
+          <i data-feather="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="p-2">
+          <div class="form-group">
+            <label for="basicInput">Enter your password</label>
+            {{ form.password }}
+          </div>
+
+          <div class="pt-4">
+            <input
+              type="submit"
+              class="btn btn-md btn-danger"
+              value="Reject"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" data-bs-dismiss="modal">
+          <i class="bx bx-x d-block d-sm-none"></i>
+          <span class="d-none d-sm-block">Close</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

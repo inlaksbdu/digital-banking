@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login  # , logout
@@ -5,12 +6,17 @@ from django.contrib import messages
 from accounts.models import CustomUser, CustomerProfile
 from django.db.models import Q
 from django.urls import reverse
-from accounts.tasks import generic_send_mail
-from helpers.functions import generate_otp
+from accounts.tasks import generic_send_mail, generic_send_sms
+from helpers.functions import generate_otp, generate_reference_id
 from .tasks import log_action
-from helpers.decorator import view_permission, is_staff_user  # edit_permission
+from helpers.decorator import view_permission, is_staff_user, edit_permission
 from django.http import JsonResponse
 from .utils import decode_token, create_token, mask_email
+import uuid as django_uuid
+from django.core.cache import cache
+from django.contrib.auth.hashers import make_password, check_password
+from . import forms
+from cbs import models as cbsmodel
 
 # Create your views here.
 
@@ -55,7 +61,6 @@ def staff_login(request):
                 "otp": otp,
                 "subject": "Account Login 2FA",
             }
-            print("=== payload: ", payload)
             generic_send_mail.delay(
                 recipient=username,
                 title="Account Login 2FA",
@@ -146,8 +151,11 @@ def customers(request):
 @view_permission("accounts.view_customuser")
 def customer_detail(request, uuid):
     customer = CustomerProfile.objects.get(uuid=uuid)
+    recent_transactions = cbsmodel.Transfer.objects.filter(
+        user=customer.user_account,
+    )[:15]
 
-    context = {"customer": customer}
+    context = {"customer": customer, "recent_transactions": recent_transactions}
     log_action.delay(
         user_id=request.user.id,
         action=f"View Customer Detail: {customer}",
@@ -156,5 +164,791 @@ def customer_detail(request, uuid):
     return render(
         request,
         "customers/customer_detail.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("accounts.change_customuser")
+def send_temporary_password(request, uuid):
+    customer = CustomUser.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"Sent Temporary Password to Customer: {customer}",
+    )
+    password = generate_reference_id(length=10)
+    customer.set_password(password)
+    customer.password_set = False
+    customer.save()
+    # send password to customer
+    body = f"Hi {customer.first_name}, Your password reset request was successful please find your temporary password below.\n\n{password}"
+
+    # send message to customer phone number
+    # generic_send_sms.delay(str(customer.phone_number), body)
+
+    payload = {
+        "emailType": "reset_links",
+        "body": body,
+        "reset_link": password,
+        "subject": "Send Tempoary Password",
+    }
+    generic_send_mail.delay(
+        recipient=customer.email,
+        title="Send Tempoary Password",
+        payload=payload,
+    )
+    messages.success(request, "Temporary password sent successfully")
+    return redirect("dashboard:customer-detail", customer.customer_profile.uuid)
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("accounts.change_customuser")
+def send_password_reset_link(request, uuid):
+    customer = CustomUser.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"Sent Password Reset Link to Customer: {customer}",
+    )
+    url = request.build_absolute_uri()
+    domain = url.split("://")[1].split("/")[0]
+    http = url.split("://")[0]
+    reference = django_uuid.uuid4()
+    cache.set(f"password-reset/{customer.uuid}", reference, 60 * 5)
+    generated_link = (
+        http
+        + "://"
+        + domain
+        + f"/password/{customer.uuid}/reset-password/?ref="
+        + str(reference)
+    )
+
+    body = f"Hi {customer.first_name}, Click on the link below to reset your password.\n\n{generated_link}"
+
+    # generic_send_sms.delay(str(customer.phone_number), body)
+
+    payload = {
+        "emailType": "reset_links",
+        "body": body,
+        "reset_link": generated_link,
+        "subject": "Password Reset Link",
+    }
+    generic_send_mail.delay(
+        recipient=customer.email,
+        title="Password Reset Link",
+        payload=payload,
+    )
+
+    messages.success(request, "Password reset link sent successfully sent.")
+
+    return redirect("dashboard:customer-detail", customer.customer_profile.uuid)
+
+
+def customer_password_reest(request, uuid):
+    customer = CustomUser.objects.get(uuid=uuid)
+    reference = request.GET.get("ref")
+    timed_ref = cache.get(f"password-reset/{customer.uuid}")
+    link_expired = False
+    if str(timed_ref) != str(reference):
+        link_expired = True
+        context = {"link_expired": link_expired}
+        return render(
+            request, "customers/customer_password_reset.html", context=context
+        )
+
+    status = False
+    if request.method == "POST":
+        form = forms.CustomerPasswordResetForm(data=request.POST, files=request.FILES)
+        if form.is_valid():
+            pin = form.cleaned_data["pin"]
+            new_password = form.cleaned_data["new_password"]
+            # check user pin ins correcnt
+            if not check_password(pin, customer.secure_pin):
+                messages.error(request, "Incorrect PIN")
+                url = reverse("dashboard:customer-reset-password", args=[customer.uuid])
+                url_with_params = f"{url}?ref={reference}"
+                return redirect(url_with_params)
+            user = customer
+            user.set_password(new_password)
+            user.save()
+            status = True
+            messages.success(request, "Password reset successfully")
+
+        else:
+            messages.error(request, forms.erros)
+
+    else:
+        form = forms.CustomerPasswordResetForm()
+
+    context = {
+        "customer": customer,
+        "status": status,
+        "link_expired": link_expired,
+        "password_reset_form": form,
+    }
+
+    return render(request, "customers/customer_password_reset.html", context=context)
+
+
+@login_required(login_url="/")
+@is_staff_user
+@edit_permission("accounts.view_customuser", "accounts.change_customuser")
+def deactivate_customer_account(request, uuid):
+    customer = CustomUser.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"Visit customer deactivation screen: {customer}",
+    )
+
+    if request.method == "POST":
+        form = forms.AccountDeactivationForm(data=request.POST, files=request.FILES)
+        if form.is_valid():
+            reason = form.cleaned_data["reason"]
+            password = form.cleaned_data["password"]
+
+            # check user password is correct
+            if not request.user.check_password(password):
+                messages.error(request, "Incorrect password")
+                return redirect(
+                    "dashboard:customer-account-deactivation", customer.uuid
+                )
+
+            # deactivate account
+            customer.deactivated_account = True
+            customer.save()
+            messages.success(request, "Customer account deactivated successfully")
+            log_action.delay(
+                user_id=request.user.id,
+                action=f"Deactivated customer account: {customer}",
+            )
+            return redirect("dashboard:customer-detail", customer.customer_profile.uuid)
+        else:
+            print(form.errors)
+    else:
+        form = forms.AccountDeactivationForm()
+
+    context = {
+        "customer": customer,
+        "form": form,
+    }
+
+    return render(
+        request,
+        "customers/account_deactivation.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@edit_permission("accounts.view_customuser", "accounts.change_customuser")
+def activate_customer_account(request, uuid):
+    customer = CustomUser.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"Visit customer deactivation screen: {customer}",
+    )
+
+    if request.method == "POST":
+        form = forms.AccountDeactivationForm(data=request.POST, files=request.FILES)
+        if form.is_valid():
+            reason = form.cleaned_data["reason"]
+            password = form.cleaned_data["password"]
+
+            # check user password is correct
+            if not request.user.check_password(password):
+                messages.error(request, "Incorrect password")
+                return redirect("dashboard:customer-account-activation", customer.uuid)
+
+            # deactivate account
+            customer.deactivated_account = False
+            customer.save()
+            messages.success(request, "Customer account activated successfully")
+            log_action.delay(
+                user_id=request.user.id,
+                action=f"Activated customer account: {customer}",
+            )
+            return redirect("dashboard:customer-detail", customer.customer_profile.uuid)
+        else:
+            print(form.errors)
+    else:
+        form = forms.AccountDeactivationForm()
+
+    context = {
+        "customer": customer,
+        "form": form,
+    }
+
+    return render(
+        request,
+        "customers/account_deactivation.html",
+        context=context,
+    )
+
+
+def customer_pin_reest(request, uuid):
+    customer = CustomUser.objects.get(uuid=uuid)
+    reference = request.GET.get("ref")
+    timed_ref = cache.get(f"pin-reset/{customer.uuid}")
+    link_expired = False
+    if str(timed_ref) != str(reference):
+        link_expired = True
+        context = {"link_expired": link_expired}
+        return render(request, "customers/customer_pin_reset.html", context=context)
+
+    status = False
+    if request.method == "POST":
+        form = forms.CustomerPINResetForm(data=request.POST, files=request.FILES)
+        if form.is_valid():
+            password = form.cleaned_data["password"]
+            new_pin = form.cleaned_data["new_pin"]
+            # check user pin ins correcnt
+            if not customer.check_password(password):
+                messages.error(request, "Invalid Password")
+                url = reverse("dashboard:customer-reset-pin", args=[customer.uuid])
+                url_with_params = f"{url}?ref={reference}"
+                return redirect(url_with_params)
+            user = customer
+            user.secure_pin = make_password(new_pin)
+            user.save()
+            status = True
+            messages.success(request, "PIN reset successfully")
+        else:
+            messages.error(request, forms.erros)
+
+    else:
+        form = forms.CustomerPINResetForm()
+
+    context = {
+        "customer": customer,
+        "status": status,
+        "link_expired": link_expired,
+        "password_reset_form": form,
+    }
+
+    return render(request, "customers/customer_pin_reset.html", context=context)
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("accounts.change_customuser")
+def send_pin_reset_link(request, uuid):
+    customer = CustomUser.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"Sent PIN Reset Link to Customer: {customer}",
+    )
+    url = request.build_absolute_uri()
+    domain = url.split("://")[1].split("/")[0]
+    http = url.split("://")[0]
+    reference = django_uuid.uuid4()
+    cache.set(f"pin-reset/{customer.uuid}", reference, 60 * 5)
+    generated_link = (
+        http + "://" + domain + f"/pin-reset/{customer.uuid}/?ref=" + str(reference)
+    )
+
+    body = f"Hi {customer.first_name}, Click on the link below to reset your password.\n\n{generated_link}"
+
+    # generic_send_sms.delay(str(customer.phone_number), body)
+    messages.success(request, "PIN reset link sent successfully sent.")
+
+    payload = {
+        "emailType": "reset_links",
+        "body": body,
+        "reset_link": generated_link,
+        "subject": "PIN Reset Link",
+    }
+    generic_send_mail.delay(
+        recipient=customer.email,
+        title="PIN Reset Link",
+        payload=payload,
+    )
+
+    return redirect("dashboard:customer-detail", customer.customer_profile.uuid)
+
+
+def customer_requests(request):
+    digital_visits = {}
+    digital_visits["Card"] = cbsmodel.CardRequest.objects.count()
+    digital_visits["Cheque"] = cbsmodel.ChequeRequest.objects.count()
+    digital_visits["Loans"] = cbsmodel.LoanRequest.objects.count()
+    digital_visits["A/C Statement"] = cbsmodel.BankStatement.objects.filter(
+        statement_type="Official Statement"
+    ).count()
+
+    loan_requests = cbsmodel.LoanRequest.objects.filter(
+        status__in=["PENDING", "REVIEWING", "ACTION REQUIRED"],
+    ).count()
+    transfers = cbsmodel.Transfer.objects.filter(
+        status=cbsmodel.Transfer.TransferStatus.PENDING,
+        # transfer_type__in=["Other Bank Transfer", "International Transfer"],
+    ).count()
+    cheque_requests = cbsmodel.ChequeRequest.objects.filter(
+        status__in=[
+            "PENDING",
+            "PROCESSING",
+        ],
+    ).count()
+    card_requests = cbsmodel.CardRequest.objects.filter(
+        status__in=[
+            "PENDING",
+            "PROCESSING",
+        ],
+    ).count()
+    account_statements = cbsmodel.BankStatement.objects.filter(
+        statement_type="Official Statement",
+        status="Pending",
+    ).count()
+
+    # do the numbers here
+
+    context = {
+        "customer_visits": json.dumps(digital_visits),
+        "loan_requests": loan_requests,
+        "transfers": transfers,
+        "cheque_requests": cheque_requests,
+        "card_requests": card_requests,
+        "account_statements": account_statements,
+    }
+    return render(request, "customer_request/requests.html", context=context)
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_bankstatement")
+def bank_statement(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Bank Statements",
+    )
+    bank_statements = cbsmodel.BankStatement.objects.filter(
+        statement_type="Official Statement",
+        status="Pending",
+    )
+
+    context = {"bank_statements": bank_statements}
+
+    return render(
+        request, "customer_request/bank_statement/bank_statements.html", context=context
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_bankstatement")
+def bank_statement_hisotry(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Bank Statements History",
+    )
+    bank_statements = cbsmodel.BankStatement.objects.filter(
+        status__in=["Success", "Failed"],
+    )
+
+    context = {"bank_statements": bank_statements}
+
+    return render(
+        request,
+        "customer_request/bank_statement/bank_statements_history.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@edit_permission("cbs.view_bankstatement", "cbs.change_bankstatement")
+def bank_statement_detail(request, uuid):
+    bank_statement = cbsmodel.BankStatement.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"View Bank Statement Detail: {str(bank_statement)}",
+    )
+
+    if request.method == "POST":
+        form = forms.ChangeBankStatementStatus(
+            data=request.POST, instance=bank_statement
+        )
+        if form.is_valid():
+            instnace = form.save()
+            messages.success(request, "Status updated successfully")
+            body = instnace.comments
+            generic_send_sms.delay(str(bank_statement.user.phone_number), body)
+            log_action.delay(
+                user_id=request.user.id,
+                action=f"Changed Bank Statement Status, with comments: {body}",
+            )
+        else:
+            messages.error(request, form.errors)
+
+    context = {
+        "bank_statement": bank_statement,
+        "change_status_form": forms.ChangeBankStatementStatus(instance=bank_statement),
+    }
+
+    return render(
+        request,
+        "customer_request/bank_statement/bank_statement_detail.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_loanrequest")
+def loan_requests(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Lona requests",
+    )
+    loan_requests = cbsmodel.LoanRequest.objects.filter(
+        status__in=["PENDING", "REVIEWING", "ACTION REQUIRED"],
+    )
+
+    context = {"loan_requests": loan_requests}
+
+    return render(
+        request, "customer_request/loan_request/laon_requests.html", context=context
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_loanrequest")
+def loan_requests_history(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Load Request History",
+    )
+    loan_requests = cbsmodel.LoanRequest.objects.filter(
+        status__in=["REJECTED", "APPROVED"],
+    )
+
+    context = {"loan_requests": loan_requests}
+
+    return render(
+        request,
+        "customer_request/loan_request/laon_requests_history.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@edit_permission("cbs.view_loanrequest", "cbs.change_loanrequest")
+def loan_request_detail(request, uuid):
+    loan_request = cbsmodel.LoanRequest.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"View Loan Request Detail: {str(loan_request)}",
+    )
+    if loan_request.status == cbsmodel.LoanRequest.ReqeustStatus.PENDING:
+        loan_request.status = cbsmodel.LoanRequest.ReqeustStatus.REVIEWING
+        loan_request.save()
+
+    if request.method == "POST":
+        form = forms.ChangeLoanrequestStatus(data=request.POST, instance=loan_request)
+        if form.is_valid():
+
+            instnace = form.save()
+            messages.success(request, "Status updated successfully")
+            body = instnace.comments
+            generic_send_sms.delay(str(loan_request.user.phone_number), body)
+            log_action.delay(
+                user_id=request.user.id,
+                action=f"Changed Loan Request Status, with comments: {body}",
+            )
+        else:
+            messages.error(request, form.errors)
+
+    context = {
+        "loan_request": loan_request,
+        "change_status_form": forms.ChangeLoanrequestStatus(instance=loan_request),
+    }
+
+    return render(
+        request,
+        "customer_request/loan_request/laon_requests_detail.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_transfer")
+def transfers(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Transfers Requests",
+    )
+    transfers = cbsmodel.Transfer.objects.all()
+
+    context = {"transfers": transfers}
+
+    return render(
+        request,
+        "customer_request/transfers/transfer_requests.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@edit_permission("cbs.view_transfer", "cbs.change_transfer")
+def transfer_requests_detail(request, uuid):
+    transfer = cbsmodel.Transfer.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"View Transfers Requests Detail: {transfer}",
+    )
+
+    if request.method == "POST":
+        form = forms.ChangeTransferRequestStatus(data=request.POST, instance=transfer)
+        if form.is_valid():
+            instnace = form.save()
+            messages.success(request, "Status updated successfully")
+            body = instnace.comments
+            generic_send_sms.delay(str(transfer.user.phone_number), body)
+            if body:
+                log_action.delay(
+                    user_id=request.user.id,
+                    action=f"Changed Transfer request status, with reason: {body}",
+                )
+        else:
+            messages.error(request, form.errors)
+
+    context = {
+        "transfer": transfer,
+        "change_status_form": forms.ChangeTransferRequestStatus(instance=transfer),
+    }
+
+    return render(
+        request,
+        "customer_request/transfers/transfer_request_detail.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_transfer")
+def transfer_requests_history(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Transfers Requests History",
+    )
+    transfers = cbsmodel.Transfer.objects.filter(
+        status__in=["Success", "Failed"],
+        transfer_type__in=["Other Bank Transfer", "International Transfer"],
+    )
+
+    context = {"transfers": transfers}
+
+    return render(
+        request,
+        "customer_request/transfers/transfer_request_history.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_chequerequest")
+def cheque_requests(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Cheque Requests",
+    )
+    cheque_requests = cbsmodel.ChequeRequest.objects.filter(
+        status__in=[
+            "PENDING",
+            "PROCESSING",
+        ],
+    )
+
+    context = {"cheque_requests": cheque_requests}
+
+    return render(
+        request,
+        "customer_request/cheque_requests/cheque_requests.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_chequerequest")
+def cheque_request_history(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Cheque Request History",
+    )
+    cheque_requests = cbsmodel.ChequeRequest.objects.filter(
+        status__in=["COMPLETED", "REJECTED", "FAILED"],
+    )
+
+    context = {"cheque_requests": cheque_requests}
+
+    return render(
+        request,
+        "customer_request/cheque_requests/cheque_requests_history.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@edit_permission("cbs.view_chequerequest", "cbs.change_chequerequest")
+def cheque_request_detail(request, uuid):
+    cheque_request = cbsmodel.ChequeRequest.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"View Cheque Request Detail: {str(cheque_request)}",
+    )
+
+    if request.method == "POST":
+        form = forms.ChequeRequestStatusChange(
+            data=request.POST, instance=cheque_request
+        )
+        if form.is_valid():
+
+            instnace = form.save()
+            messages.success(request, "Status updated successfully")
+            body = instnace.comments
+            generic_send_sms.delay(str(cheque_request.user.phone_number), body)
+            log_action.delay(
+                user_id=request.user.id,
+                action=f"Changed Cheque Request detail, with comments: {body}",
+            )
+        else:
+            messages.error(request, form.errors)
+
+    context = {
+        "cheque_request": cheque_request,
+        "change_status_form": forms.ChequeRequestStatusChange(instance=cheque_request),
+    }
+
+    return render(
+        request,
+        "customer_request/cheque_requests/cheque_requests_detail.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_cardservice")
+def card_request(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Card Services Requests",
+    )
+    card_requests = cbsmodel.CardRequest.objects.filter(
+        status__in=[
+            "PENDING",
+            "PROCESSING",
+        ],
+    )
+
+    context = {"card_requests": card_requests}
+
+    return render(
+        request,
+        "customer_request/card_services/card_service_requests.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_cardservice")
+def card_request_history(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Card Service Request History",
+    )
+    card_requests = cbsmodel.CardRequest.objects.filter(
+        status__in=["COMPLETED", "REJECTED", "FAILED"],
+    )
+
+    context = {"card_requests": card_requests}
+
+    return render(
+        request,
+        "customer_request/card_services/card_service_requests_history.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@edit_permission("cbs.view_cardservice", "cbs.change_cardservice")
+def card_request_detail(request, uuid):
+    card_request = cbsmodel.CardRequest.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"View Card Service Request Detail: {str(card_request)}",
+    )
+
+    if request.method == "POST":
+        form = forms.CardRequestStatusChange(data=request.POST, instance=card_request)
+        if form.is_valid():
+
+            instnace = form.save()
+            messages.success(request, "Status updated successfully")
+            body = instnace.comments
+            generic_send_sms.delay(str(card_request.user.phone_number), body)
+            log_action.delay(
+                user_id=request.user.id,
+                action=f"Changed Card Service Request detail, with comments: {body}",
+            )
+        else:
+            messages.error(request, form.errors)
+
+    context = {
+        "card_request": card_request,
+        "change_status_form": forms.CardRequestStatusChange(instance=card_request),
+    }
+
+    return render(
+        request,
+        "customer_request/card_services/card_service_requests_detail.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_payment")
+def payments(request):
+    log_action.delay(
+        user_id=request.user.id,
+        action="View Payments",
+    )
+    payments = cbsmodel.Payment.objects.filter()
+
+    context = {"payments": payments}
+
+    return render(
+        request,
+        "payments/payments.html",
+        context=context,
+    )
+
+
+@login_required(login_url="/")
+@is_staff_user
+@view_permission("cbs.view_payment")
+def payments_detail(request, uuid):
+    payment = cbsmodel.Payment.objects.get(uuid=uuid)
+    log_action.delay(
+        user_id=request.user.id,
+        action=f"View Payments Detail: {payment}",
+    )
+
+    context = {"payment": payment}
+    return render(
+        request,
+        "payments/payment_detail.html",
         context=context,
     )

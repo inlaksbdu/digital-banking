@@ -1,0 +1,11 @@
+{% if status == 'PENDING' %}
+<span class="badge bg-warning">Pending</span>
+{% elif status == 'APPROVED' %}
+<span class="badge bg-success">Approved</span>
+{% elif status == 'REJECTED' %}
+<span class="badge bg-danger">Rejected</span>
+{% elif status == 'ACTION REQUIRED' %}
+<span class="badge bg-info">Action Required</span>
+{% elif status == 'REVIEWING' %}
+<span class="badge bg-primary">REVIEWING</span>
+{% endif %}

@@ -1,0 +1,64 @@
+{% extends 'core_base.html' %} {% block content %}
+
+<div class="card">
+  <div class="card-header bg-header d-flex justify-content-between">
+    <h4 class="card-title">Transfers</h4>
+    <a href="{% url 'dashboard:transfer-requests-hisotry' %}" class="btn btn-primary btn-sm">View History</a>
+  </div>
+  <div class="card-body">
+    <div
+      id="basic-datatables_wrapper"
+      class="dataTables_wrapper container-fluid dt-bootstrap4"
+    >
+
+
+      <hr>
+
+      <div class="table-responsive pt-4">
+        <div class="col-sm-12">
+          <table class="table table-striped table-hover dataTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th class="text-align-left">REF</th>
+                <th class="text-align-left">Debit Account</th>
+                <th class="text-align-left">Recipient Account</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Transfer Type</th>
+                <th class="text-align-right">Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for transfer in transfers %}
+              <tr style=" height: 10px !important;">
+                <td>{{ forloop.counter }}</td>
+                <td class="text-align-left">
+                 {{ transfer.reference }} </a>
+                </td>
+                <td>{{ transfer.source_account }}</td>
+                <td>{{ transfer.recipient_account }}</td>
+                <td>STN {{ transfer.amount }}</td>
+                <td>
+                    {% with status=transfer.status %}
+                        {% include 'components/status.html' %}
+                    {% endwith %}
+                </td>
+
+                <td>{{ transfer.transfer_type }}</td>
+                <td>{{ transfer.date_created }}</td>
+                <td>
+                  <a href="{% url 'dashboard:transfer-requests-detail' transfer.uuid %}">View</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

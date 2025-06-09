@@ -1,0 +1,210 @@
+{% extends 'core_base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block content %}
+<div class="row">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header bg-header justify-content-between d-flex">
+        <h4 class="card-title">
+          {% if '/activate-account' in request.get_full_path %}
+          Activate Customer Digital Account
+          {% else %}
+          Deactivate Customer Digital Account
+          {% endif %}
+        </h4>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+        <div class="p-2">
+          <div class="form-group mb-3">
+            <label for="exampleFormControlTextarea1" class="form-label"
+              >{{ form.reason.label }}</label
+            >
+            <!-- <textarea
+              class="form-control"
+              id="exampleFormControlTextarea1"
+              rows="3"
+              name="deactivation-reason"
+            ></textarea> -->
+            {{ form.reason  }}
+
+          </div>
+          {% if '/activate-account' in request.get_full_path %}
+          <button
+            type="button"
+            class="btn btn-success getting block"
+            data-bs-toggle="modal"
+            data-bs-target="#employmentDetail"
+          >
+            Activate Account
+          </button>
+          {% else %}
+          <button
+            type="button"
+            class="btn btn-danger getting block"
+            data-bs-toggle="modal"
+            data-bs-target="#employmentDetail"
+          >
+            Deactivate Account
+          </button>
+          {% endif %}
+
+          <div
+            class="modal fade text-left "
+            id="employmentDetail"
+            tabindex="-1"
+            role="dialog"
+            aria-labelledby="myModalLabel2"
+            aria-hidden="true"
+           >
+            <div
+              class="modal-dialog modal-dialog-scrollable"
+              role="document"
+            >
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="myModalLabel2">Enter Password</h5>
+                  <button
+                    type="button"
+                    class="close rounded-pill"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                  >
+                    <i data-feather="x"></i>
+                  </button>
+                </div>
+                <div class="modal-body">
+                  <div class="p-2">
+
+                      <div class="form-group">
+                        <label for="basicInput">Enter your password</label>
+                        {{ form.password }}
+
+                      </div>
+
+                      <div class="pt-4">
+                        {% if '/activate-account' in request.get_full_path %}
+                          <input
+                          type="submit"
+                          class="btn btn-md btn-success"
+                          value="Activate"
+                          />
+                        {% else %}
+                          <input
+                          type="submit"
+                          class="btn btn-md btn-danger"
+                          value="Deactivate"
+                          />
+                        {% endif %}
+
+                      </div>
+
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn" data-bs-dismiss="modal">
+                    <i class="bx bx-x d-block d-sm-none"></i>
+                    <span class="d-none d-sm-block">Close</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-2 border">
+            <img
+              {% if customer.customer_profile.profile_picture %}
+              src="{{ customer.customer_profile.profile_picture.url }}"
+              {% else %}
+              src="{% static 'img/jm_denis.jpg' %}"
+              {% endif %}
+              alt="image not found"
+              class="avatar-img rounded"
+              style="width: 100%; height: 200px; object-fit: contain"
+            />
+          </div>
+
+          <div class="col-md-10 px-5">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="disabledInput">Customer ID</label>
+                  <p class="form-control-static">
+                    {{ customer.customer_profile.t24_customer_id }}
+                  </p>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="disabledInput">Name</label>
+                  <p class="form-control-static">
+                    {{ customer.fullname }}
+                  </p>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="disabledInput">Phone Number</label>
+                  <p class="form-control-static">{{ customer.phone_number }}</p>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="disabledInput">Date of Birth</label>
+                  <p class="form-control-static">
+                    {{ customer.customer_profile.date_of_birth }}
+                  </p>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="disabledInput">Email</label>
+                  <p class="form-control-static">{{ customer.email }}</p>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="disabledInput">Gender</label>
+                  <p class="form-control-static">
+                    {{ customer.customer_profile.gender }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="disabledInput">Nationality</label>
+                  <p class="form-control-static">
+                    {{ customer.customer_profile.nationality }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="disabledInput">Address</label>
+                  <p class="form-control-static">
+                    {{ customer.customer_profile.address }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

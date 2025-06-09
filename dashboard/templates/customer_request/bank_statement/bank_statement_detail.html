@@ -1,0 +1,152 @@
+{% extends 'core_base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<section class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div
+        class="card-header text-center align-items-center justify-content-center {% if bank_statement.status == 'Pending' %} bg-light-warning {% elif bank_statement.status == 'Failed' %} bg-light-danger {% elif bank_statement.status == 'Success' %}bg-light-success {% endif %}"
+      >
+
+
+        <h6>{{ bank_statement.status }}</h6>
+        <h2 class="pt-1">Bank Statement</h2>
+        <small class="text-muted">{{ bank_statement.date_created }}</small>
+      </div>
+
+      <div class="card-body pt-4">
+        <div class="row">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer ID</label>
+              <p class="form-control-static">
+                {{ bank_statement.user.t24_customer_id }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer Name</label>
+              <p class="form-control-static">
+                {{ bank_statement.user.fullname }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Phone Number</label>
+              <p class="form-control-static">
+                {{ bank_statement.user.phone_number }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <hr />
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">REQUEST DETAILS</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Account #</label>
+              <p class="form-control-static">
+                {{ bank_statement.source_account.account_number }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Request Type</label>
+              <p class="form-control-static">
+                {{ bank_statement.statement_type }}
+              </p>
+            </div>
+          </div>
+
+        </div>
+        <hr />
+
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Start Date</label>
+              <p class="form-control-static">
+                {{ bank_statement.start_date }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">End Date</label>
+              <p class="form-control-static">{{ bank_statement.end_date }}</p>
+            </div>
+          </div>
+
+        </div>
+        <hr />
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">META DATA</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Pick-Up Branch</label>
+              <p class="form-control-static">{{ bank_statement.pick_up_branch }}</p>
+            </div>
+          </div>
+
+
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Date Created</label>
+              <p class="form-control-static">
+               {{ bank_statement.date_created }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Last Updated</label>
+              <p class="form-control-static">{{ bank_statement.last_updated }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 text-right">
+
+    <div class="card">
+        <div class="card-body">
+            <h5>Notify Customer</h5>
+            {% if  bank_statement.status == 'Pending' %}
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                {{ change_status_form | crispy }}
+              <div>
+                <input type="submit" class="btn btn-md btn-success" value="Notify Customer">
+              </div>
+            </form>
+            <br>
+            {% else %}
+            <p>Customer has already been notified</p>
+            <br>
+            <h6>Comments</h6>
+            <p>{{ bank_statement.comments }}</p>
+            {% endif %}
+            <br>
+
+        </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

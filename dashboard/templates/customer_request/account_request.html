@@ -1,0 +1,134 @@
+{% extends 'core_base.html' %} {% block content %}
+
+<div class="card">
+  <div class="card-header bg-header">
+    <h4 class="card-title">Customer Account Requests</h4>
+  </div>
+  <div class="card-body">
+    <div
+      id="basic-datatables_wrapper"
+      class="dataTables_wrapper container-fluid dt-bootstrap4"
+    >
+      <div class="col-md-12">
+        <!-- <form action="#" method="get">
+          <div class="input-group-prepend">
+            <button type="submit" class="btn btn-search pe-1">
+              <i class="fa fa-search search-icon"></i>
+            </button>
+          </div>
+
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-group has-icon-left">
+                <div class="position-relative">
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Search ... "
+                    name="sq"
+                    {% if sq %}
+                    value="{{ sq }}"
+                    {% endif %}
+                  />
+                  <div class="form-control-icon">
+                    <i class="bi bi-search"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-3">
+              <fieldset class="form-group">
+                <select name="trnftype" class="form-select" id="basicSelect">
+                    {% if not trnftype %}
+                    <option selected disabled>Transfer Type</option>
+                    {% endif %}
+                    {% for optstype, _ in transfer_types %}
+                      {% if trnftype == optstype %}
+                      <option  selected >{{ optstype }}</option>
+                      {% else %}
+                      <option >{{ optstype }}</option>
+                      {% endif %}
+                    {% endfor %}
+                </select>
+              </fieldset>
+            </div>
+            <div class="col-md-3">
+              <fieldset class="form-group">
+                <select name="status" class="form-select" id="basicSelect">
+                  {% if not status %}
+                  <option selected disabled>Transfer Status</option>
+                  {% endif %}
+                  {% for optstatus, _ in transfer_statuses %}
+                    {% if status == optstatus %}
+                    <option  selected >{{ optstatus }}</option>
+                    {% else %}
+                    <option >{{ optstatus }}</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+              </fieldset>
+            </div>
+
+            <div class="col-md-3">
+              <fieldset class="form-group">
+                <input
+                  type="range"
+                  class="form-range"
+                  min="0"
+                  max="1000000000"
+                  step="1"
+                  id="customRange3"
+                />
+              </fieldset>
+            </div>
+          </div>
+        </form> -->
+      </div>
+
+      <div class="table-responsive">
+        <div class="col-sm-12">
+          <table id="normTable" class="table table-striped table-hover">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Customer Name</th>
+                <th style="text-align: left;">Account Category</th>
+                <th style="text-align: left;">Phone Number</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for account_request in account_requests %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+
+                <td>
+                    <a href="{% url 'dashboard:cusomter-account-request-detail' account_request.uuid %}">
+                        {{ account_request.user.fullname }}
+                    </a>
+                </td>
+                <td style="text-align: left;">
+                   {{ account_request.account_type.name }}
+                </td>
+                <td style="text-align: left;">
+                    {{ account_request.user.phone_number }}
+                </td>
+                <td>
+                  {{ account_request.status }}
+                </td>
+                <td>{{ account_request.date_created }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

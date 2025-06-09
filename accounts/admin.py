@@ -39,6 +39,7 @@ class UserAdmin(UserAdmin, ModelAdmin):
                     "last_login_ip",
                     "last_seen",
                     "uuid",
+                    "deactivated_account",
                 ),
             },
         ),
@@ -90,3 +91,18 @@ class UserSecurityQuestionAdmin(ModelAdmin):
     ]
     search_fields = ["user", "question"]
     readonly_fields = ["user", "answer_hash", "question", "uuid"]
+
+
+@admin.register(models.ActivityLog)
+class ActivityLogAdmin(ModelAdmin):
+    list_display = [
+        "id",
+        "user",
+        "action",
+        "date_created",
+    ]
+    readonly_fields = [
+        "user",
+        "action",
+        "date_created",
+    ]

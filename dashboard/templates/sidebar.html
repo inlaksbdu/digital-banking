@@ -36,22 +36,26 @@
         </li>
 
 
-        <li class="pc-item">
-          <a href="#" class="pc-link">
+        {% url 'dashboard:customer-requests' as customer_requests_url %}
+        <li class="pc-item {% if request.path == quotations_url %}active{% endif %}">
+          <a href="{{ customer_requests_url }}" class="pc-link">
             <span class="pc-micon"><i class="ti ti-arrows-double-sw-ne"></i></span>
             <span class="pc-mtext">Customers Requests</span>
           </a>
         </li>
 
-        <li class="pc-item">
-          <a href="#" class="pc-link">
+        {% url 'dashboard:transfers' as transfers_url %}
+        <li class="pc-item {% if request.path == quotations_url %}active{% endif %}">
+          <a href="{{ transfers_url }}" class="pc-link">
             <span class="pc-micon"><i class="ti ti-transaction"></i></span>
             <span class="pc-mtext">Transactions</span>
           </a>
         </li>
 
-        <li class="pc-item">
-          <a href="#" class="pc-link">
+
+        {% url 'dashboard:payments' as payments_url %}
+        <li class="pc-item {% if request.path == payments_url %}active{% endif %}">
+          <a href="{{ payments_url }}" class="pc-link">
             <span class="pc-micon"><i class="ti ti-credit-card-pay"></i></span>
             <span class="pc-mtext">Payments</span>
           </a>

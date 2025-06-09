@@ -1,0 +1,229 @@
+{% extends 'core_base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<section class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div
+        class="card-header text-center align-items-center justify-content-center {% if cheque_request.status == 'PENDING' %} bg-light-warning {% elif cheque_request.status == 'REJECTED' %} bg-light-danger {% elif cheque_request.status == 'FAILED' %} bg-light-danger {% elif cheque_request.status == 'COMPLETED' %}bg-light-success{% elif cheque_request.status == 'PROCESSING' %}bg-light-primary {% endif %}"
+      >
+        <h6>{{ cheque_request.status }}</h6>
+        <h2 class="pt-1">{{ cheque_request.cheque_request_type }}</h2>
+        <small class="text-muted">{{ cheque_request.date_created }}</small>
+      </div>
+
+      <div class="card-body pt-4">
+        <!-- Customer Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">CUSTOMER INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-2">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer ID</label>
+              <p class="form-control-static">
+                {{ cheque_request.user.t24_customer_id }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer Name</label>
+              <p class="form-control-static">
+                {{ cheque_request.user.fullname }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Phone Number</label>
+              <p class="form-control-static">
+                {{ cheque_request.user.phone_number }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <hr />
+
+        <!-- Account Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">ACCOUNT INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Account #</label>
+              <p class="form-control-static">
+                {{ cheque_request.source_account.account_number }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Product Type</label>
+              <p class="form-control-static">{{ cheque_request.source_account.product_type|default:"Current Account" }}</p>
+            </div>
+          </div>
+          {% if cheque_request.request_debit_account %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Debit Account</label>
+              <p class="form-control-static">
+                {{ cheque_request.request_debit_account }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <hr />
+
+        <!-- Request Details Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">CHEQUE REQUEST DETAILS</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Request Type</label>
+              <p class="form-control-static">
+                {{ cheque_request.cheque_request_type }}
+              </p>
+            </div>
+          </div>
+
+          {% if cheque_request.cheque_request_type == 'CHEQUE REQUEST' %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Cheque Leaves</label>
+              <p class="form-control-static">
+                {{ cheque_request.leaves }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if cheque_request.cheque_request_type == 'BLOCK CHEQUE REQUEST' %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Cheque Numbers</label>
+              <p class="form-control-static">
+                {{ cheque_request.cheque_numbers }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="form-group">
+              <label for="disabledInput">Reason for Blocking</label>
+              <p class="form-control-static">
+                {{ cheque_request.reason }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Delivery Information Section -->
+        <div class="row pt-3">
+          {% if cheque_request.address %}
+          <div class="col-md-12">
+            <div class="form-group">
+              <label for="disabledInput">Delivery Address</label>
+              <p class="form-control-static">
+                {{ cheque_request.address }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if cheque_request.branch %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Pick-Up Branch</label>
+              <p class="form-control-static">
+                {{ cheque_request.branch.name }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if cheque_request.comments %}
+        <div class="row pt-3">
+          <div class="col-md-12">
+            <div class="form-group">
+              <label for="disabledInput">Comments</label>
+              <p class="form-control-static">
+                {{ cheque_request.comments }}
+              </p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        <hr />
+
+        <!-- Status Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">STATUS INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Date Created</label>
+              <p class="form-control-static">
+                {{ cheque_request.date_created }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Last Updated</label>
+              <p class="form-control-static">{{ cheque_request.last_updated }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 text-right">
+
+    <div class="card">
+        <div class="card-body">
+            <h5>Notify Customer</h5>
+            {% if  cheque_request.status == 'PENDING'  or cheque_request.status == 'PROCESSING' %}
+
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                {{ change_status_form | crispy }}
+              <div>
+                <input type="submit" class="btn btn-md btn-success" value="Notify Customer">
+              </div>
+            </form>
+            <br>
+
+            {% else %}
+            <p>Customer has already been notified</p>
+            <br>
+            <h6>Comments</h6>
+            <p>{{ cheque_request.comments }}</p>
+            {% endif %}
+            <br>
+
+        </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

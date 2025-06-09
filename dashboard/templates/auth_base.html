@@ -1,14 +1,12 @@
-<!DOCTYPE html>
+{% load static %}
+<!doctype html>
 <html lang="en">
   <!-- [Head] start -->
   <head>
-    <title>Login | Berry Dashboard Template</title>
+    <title></title>
     <!-- [Meta] -->
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta
       name="description"
@@ -22,29 +20,22 @@
 
     <!-- [Favicon] icon -->
     <link rel="icon" href="{% static 'images/favicon.svg' %}" type="image/x-icon" />
-    <!-- [Google Font] Family -->
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
-      id="main-font-link"
-    />
-    <!-- [phosphor Icons] https://phosphoricons.com/ -->
-    <link rel="stylesheet" href="{% static 'fonts/phosphor/duotone/style.css' %}" />
-    <!-- [Tabler Icons] https://tablericons.com -->
-    <link rel="stylesheet" href="{% static 'fonts/tabler-icons.min.css' %}" />
-    <!-- [Feather Icons] https://feathericons.com -->
-    <link rel="stylesheet" href="{% static 'fonts/feather.css' %}" />
-    <!-- [Font Awesome Icons] https://fontawesome.com/icons -->
-    <link rel="stylesheet" href="{% static 'fonts/fontawesome.css' %}" />
-    <!-- [Material Icons] https://fonts.google.com/icons -->
-    <link rel="stylesheet" href="{% static 'fonts/material.css' %}" />
-    <!-- [Template CSS Files] -->
-    <link
-      rel="stylesheet"
-      href="{% static 'css/style.css' %}"
-      id="main-style-link"
-    />
-    <link rel="stylesheet" href="{% static 'css/style-preset.css' %}" />
+ <!-- [Google Font] Family -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" id="main-font-link" />
+<!-- [phosphor Icons] https://phosphoricons.com/ -->
+<link rel="stylesheet" href="{% static 'fonts/phosphor/duotone/style.css' %}" />
+<!-- [Tabler Icons] https://tablericons.com -->
+<link rel="stylesheet" href="{% static 'fonts/tabler-icons.min.css' %}" />
+<!-- [Feather Icons] https://feathericons.com -->
+<link rel="stylesheet" href="{% static 'fonts/feather.css' %}" />
+<!-- [Font Awesome Icons] https://fontawesome.com/icons -->
+<link rel="stylesheet" href="{% static 'fonts/fontawesome.css' %}" />
+<!-- [Material Icons] https://fonts.google.com/icons -->
+<link rel="stylesheet" href="{% static 'fonts/material.css' %}" />
+<!-- [Template CSS Files] -->
+<link rel="stylesheet" href="{% static 'css/style.css' %}" id="main-style-link" />
+<link rel="stylesheet" href="{% static 'css/style-preset.css' %}" />
+
   </head>
   <!-- [Head] end -->
   <!-- [Body] Start -->
@@ -52,94 +43,43 @@
     <!-- [ Pre-loader ] start -->
     <div class="loader-bg">
       <div class="loader-track">
-        <div class="loader-fill"></div>
+        <!-- <div class="loader-fill"></div> -->
       </div>
     </div>
     <!-- [ Pre-loader ] End -->
 
     <div class="auth-main">
       <div class="auth-wrapper v3">
-        <div class="auth-form">
-          <div class="card my-5">
-            <div class="card-body">
-              <a href="#" class="d-flex justify-content-center">
-                <img
-                  src="{% static 'images/logo-dark.svg' %}"
-                  alt="image"
-                  class="img-fluid brand-logo"
-                />
-              </a>
-              <div class="row">
-                <div class="d-flex justify-content-center">
-                  <div class="auth-header">
-                    <h2 class="text-secondary mt-5"><b>Hi, Welcome Back</b></h2>
-                    <p class="f-16 mt-2">Enter your credentials to continue</p>
-                  </div>
-                </div>
+          <div class="auth-form">
+              <div class="card">
+                    <div class="card-body">
+                        <a href="#" class="d-flex justify-content-center"
+                          >
+                                  <img style="height: 60px;" src="https://www.consolidated-bank.com/images/consolidated_bank_logo.png" alt="" srcset="">
+
+                      </a>
+                      <div class="py-2 px-4">
+                          {% if messages %}
+                          {% for message in messages %}
+                          <div class="alert {% if message.tags == 'error' %} alert-danger {% else %} alert-success {% endif %} alert-dismissible show fade">
+                              {{ message }}
+                          </div>
+                          {% endfor %}
+                          {% endif %}
+                      </div>
+
+                      {% block content %}
+
+
+                      {% endblock %}
+                    </div>
               </div>
-              <div class="d-grid">
-                <button
-                  type="button"
-                  class="btn mt-2 bg-light-primary bg-light text-muted"
-                >
-                  <img
-                    src="{% static 'images/authentication/google-icon.svg' %}"
-                    alt="image"
-                  />Sign In With Google
-                </button>
-              </div>
-              <div class="saprator mt-3">
-                <span>or</span>
-              </div>
-              <h5 class="my-4 d-flex justify-content-center">
-                Sign in with Email address
-              </h5>
-              <div class="form-floating mb-3">
-                <input
-                  type="email"
-                  class="form-control"
-                  id="floatingInput"
-                  placeholder="Email address / Username"
-                />
-                <label for="floatingInput">Email address / Username</label>
-              </div>
-              <div class="form-floating mb-3">
-                <input
-                  type="email"
-                  class="form-control"
-                  id="floatingInput1"
-                  placeholder="Password"
-                />
-                <label for="floatingInput1">Password</label>
-              </div>
-              <div class="d-flex mt-1 justify-content-between">
-                <div class="form-check">
-                  <input
-                    class="form-check-input input-primary"
-                    type="checkbox"
-                    id="customCheckc1"
-                    checked=""
-                  />
-                  <label class="form-check-label text-muted" for="customCheckc1"
-                    >Remember me</label
-                  >
-                </div>
-                <h5 class="text-secondary">Forgot Password?</h5>
-              </div>
-              <div class="d-grid mt-4">
-                <button type="button" class="btn btn-secondary">Sign In</button>
-              </div>
-              <hr />
-              <h5 class="d-flex justify-content-center">
-                Don't have an account?
-              </h5>
-            </div>
           </div>
-        </div>
       </div>
     </div>
     <!-- [ Main Content ] end -->
     <!-- Required Js -->
+    <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
     <script src="{% static 'js/plugins/popper.min.js' %}"></script>
     <script src="{% static 'js/plugins/simplebar.min.js' %}"></script>
     <script src="{% static 'js/plugins/bootstrap.min.js' %}"></script>
@@ -148,29 +88,48 @@
     <script src="{% static 'js/theme.js' %}"></script>
     <script src="{% static 'js/plugins/feather.min.js' %}"></script>
 
+
     <script>
-      layout_change("light");
+      layout_change('light');
     </script>
 
     <script>
-      font_change("Roboto");
+      font_change('Roboto');
     </script>
 
     <script>
-      change_box_container("false");
+      change_box_container('false');
     </script>
 
     <script>
-      layout_caption_change("true");
+      layout_caption_change('true');
     </script>
 
     <script>
-      layout_rtl_change("false");
+      layout_rtl_change('false');
     </script>
 
     <script>
-      preset_change("preset-1");
+      preset_change('preset-1');
     </script>
+
+
+        <script>
+        $(document).ready(function () {
+          console.log("=== this function is runnign");
+          $(".alert-success")
+            .fadeTo(2000, 500)
+            .slideUp(500, function () {
+              $(".alert-success").slideUp(500);
+            });
+          $(".alert-danger")
+            .fadeTo(2000, 500)
+            .slideUp(500, function () {
+              $(".alert-danger").slideUp(500);
+            });
+        });
+      </script>
+
   </body>
   <!-- [Body] end -->
 </html>

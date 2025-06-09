@@ -1,0 +1,58 @@
+{% extends 'core_base.html' %} {% block content %}
+
+<div class="card">
+  <div class="card-header bg-header">
+    <h4 class="card-title">Access Guardian</h4>
+  </div>
+  <div class="card-body">
+    <div
+      id="basic-datatables_wrapper"
+      class="dataTables_wrapper container-fluid dt-bootstrap4"
+    >
+      <div class="col-md-12">
+
+      </div>
+
+      <div class="table-responsive">
+        <div class="col-sm-12">
+          <table class="table table-striped table-hover dataTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th class="text-align-left">Issue Type</th>
+                <th style="text-align: left !important;">Phone Number</th>
+                <th class="text-center">Is Customer?</th>
+                <th>IP Address</th>
+                <th>Device</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for access in access_guardians %}
+              <tr style=" height: 10px !important;">
+                <td>{{ forloop.counter }}</td>
+                <td> {{ access.log_type }}  </td>
+                <td style="text-align: left !important;"> {{ access.phone_number }} </td>
+                <td class="text-center">
+                    {% if access.is_customer %}
+                        <i class="bi bi-check-circle-fill text-success"></i> YES
+                    {% else %}
+                        <i class="bi bi-x-circle-fill text-danger"></i> NO
+                    {% endif %}
+
+                </td>
+                <td>{{ access.ip_address }}</td>
+                <td>{{ access.device }} </td>
+                <td>{{ access.date_created }} </td>
+
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

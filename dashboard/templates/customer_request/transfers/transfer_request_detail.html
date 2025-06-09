@@ -1,0 +1,310 @@
+{% extends 'core_base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<section class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div
+        class="card-header text-center align-items-center justify-content-center {% if transfer.status == 'Pending' %} bg-light-warning {% elif transfer.status == 'Failed' %} bg-light-danger {% elif transfer.status == 'Success' %}bg-light-success {% endif %}"
+      >
+
+
+        <h6>{{ transfer.status }}</h6>
+        <h2 class="pt-1">STN {{ transfer.amount }}</h2>
+        <small class="text-muted">{{ transfer.date_created }}</small>
+      </div>
+
+      <div class="card-body pt-4">
+        <!-- Customer Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">CUSTOMER INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-2">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer ID</label>
+              <p class="form-control-static">
+                {{ transfer.user.t24_customer_id }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer Name</label>
+              <p class="form-control-static">
+                {{ transfer.user.fullname }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Phone Number</label>
+              <p class="form-control-static">
+                {{ transfer.user.phone_number }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <hr />
+
+        <!-- Debit Account Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">DEBIT ACCOUNT DETAIL</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Account #</label>
+              <p class="form-control-static">
+                {{ transfer.source_account.account_number }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Product Type</label>
+              <p class="form-control-static">{{ transfer.source_account.product_type|default:"Savings Account" }}</p>
+            </div>
+          </div>
+        </div>
+        <hr />
+
+        <!-- Credit Account Section - Dynamic based on transfer type -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">CREDIT ACCOUNT DETAIL</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Credit Account #</label>
+              <p class="form-control-static">
+                {{ transfer.recipient_account }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Credit Account Name</label>
+              <p class="form-control-static">{{ transfer.recipient_name }}</p>
+            </div>
+          </div>
+
+          {% if transfer.transfer_type == "International Transfer" %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Recipient Country</label>
+              <p class="form-control-static">{{ transfer.recipient_country }}</p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">IBAN Number</label>
+              <p class="form-control-static">{{ transfer.recipient_iban_number }}</p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Recipient Bank</label>
+              <p class="form-control-static">{{ transfer.recipient_bank }}</p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">SWIFT Code</label>
+              <p class="form-control-static">{{ transfer.recipient_swift_code }}</p>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if transfer.transfer_type == "Other Bank Transfer" or transfer.transfer_type == "GTI Transfer" %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Recipient Bank</label>
+              <p class="form-control-static">{{ transfer.recipient_bank }}</p>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if transfer.transfer_type == "Account to Wallet" %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Recipient Phone Number</label>
+              <p class="form-control-static">{{ transfer.recipient_phone_number }}</p>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if transfer.recipient_phone_number and transfer.transfer_type != "Own Account Transfer" %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Recipient Phone</label>
+              <p class="form-control-static">{{ transfer.recipient_phone_number }}</p>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if transfer.recipient_email and transfer.transfer_type != "Own Account Transfer" %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Recipient Email</label>
+              <p class="form-control-static">{{ transfer.recipient_email }}</p>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if transfer.recipient_residence_address and transfer.transfer_type == "International Transfer" %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Recipient Address</label>
+              <p class="form-control-static">{{ transfer.recipient_residence_address }}</p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <hr />
+
+        <!-- Transaction Detail Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">TRANSACTION DETAIL</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Transaction Type</label>
+              <p class="form-control-static">
+                {{ transfer.transfer_type }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Amount</label>
+              <p class="form-control-static">
+                {{ transfer.amount|floatformat:2 }} {% if transfer.currency %}{{ transfer.currency }}{% endif %}
+              </p>
+            </div>
+          </div>
+
+          {% if transfer.transfer_type != "Own Account Transfer" %}
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Charges By</label>
+              <p class="form-control-static">{{ transfer.charges }}</p>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Purpose of Transaction</label>
+              <p class="form-control-static">
+                {{ transfer.purpose_of_transaction }}
+              </p>
+            </div>
+          </div>
+
+          {% if transfer.comments %}
+          <div class="col-md-12">
+            <div class="form-group">
+              <label for="disabledInput">Comments</label>
+              <p class="form-control-static">
+                {{ transfer.comments }}
+              </p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        <hr />
+
+
+
+
+
+        <!-- Reference Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">REFERENCE INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Internal Reference</label>
+              <p class="form-control-static">
+                {{ transfer.internal_reference }}
+              </p>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">T24 Reference</label>
+              <p class="form-control-static">
+                {{ transfer.t24_reference }}
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Meta Information Section -->
+        <div class="row pt-3">
+
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Date Created</label>
+              <p class="form-control-static">
+                {{ transfer.date_created }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Last Updated</label>
+              <p class="form-control-static">{{ transfer.last_updated }}</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 text-right">
+
+    <div class="card">
+      <div class="card-body">
+          <h5>Notify Customer</h5>
+          {% if  transfer.status == 'Pending' %}
+          <form method="post" class="mt-4">
+              {% csrf_token %}
+              {{ change_status_form | crispy }}
+            <div>
+              <input type="submit" class="btn btn-md btn-success" value="Notify Customer">
+            </div>
+          </form>
+          <br>
+          {% else %}
+          <p>Customer has already been notified</p>
+          <br>
+          <h6>Comments</h6>
+          <p>{{ trasnfer.comments }}</p>
+          {% endif %}
+          <br>
+
+      </div>
+  </div>
+
+  </div>
+</section>
+{% endblock %}

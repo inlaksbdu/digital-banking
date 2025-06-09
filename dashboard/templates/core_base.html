@@ -54,7 +54,16 @@
 
     <!-- [ Main Content ] start -->
     <div class="pc-container">
-      <div class="pc-content">
+      <div class="pc-content p-3">
+         <div>
+                    {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert {% if message.tags == 'error' %} alert-danger {% else %} alert-success {% endif %} alert-dismissible show fade">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
         <!-- [ Main Content ] start -->
         {% block content %}
 
@@ -112,6 +121,22 @@
     <script src="{% static 'js/plugins/apexcharts.min.js' %}"></script>
     <script src="{% static 'js/pages/dashboard-default.js' %}"></script>
     <!-- [Page Specific JS] end -->
+
+     <script>
+        $(document).ready(function () {
+          console.log("=== this function is runnign");
+          $(".alert-success")
+            .fadeTo(2000, 500)
+            .slideUp(500, function () {
+              $(".alert-success").slideUp(500);
+            });
+          $(".alert-danger")
+            .fadeTo(2000, 500)
+            .slideUp(500, function () {
+              $(".alert-danger").slideUp(500);
+            });
+        });
+      </script>
   </body>
   <!-- [Body] end -->
 </html>

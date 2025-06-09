@@ -1,0 +1,198 @@
+{% extends 'core_base.html' %} {% load static %} {% block content %}
+<section class="row">
+  <h4>Customer Requests</h4>
+
+  <hr />
+
+  <div class="row">
+    <div class="col-xxl-3 col-md-6">
+      <a href="{% url 'dashboard:bank-statements' %}">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="flex-grow-1 me-3">
+                <p class="mb-1 fw-medium text-muted">Official Bank Statement</p>
+                {% if account_statements %}
+                <h4 class="mb-1">
+                  <span class="badge bg-danger">{{account_statements}}</span>
+                </h4>
+                {% endif %}
+              </div>
+              <div class="flex-shrink-0">
+                <div class="avtar avtar-l bg-light-primary rounded-circle">
+                  <i class="ph-duotone ph-book-bookmark f-28"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+
+
+    <div class="col-xxl-3 col-md-6">
+      <div class="card">
+        <a href="{% url 'dashboard:loan-requests' %}">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="flex-grow-1 me-3">
+                  <p class="mb-1 fw-medium text-muted">Loan Requests</p>
+                  {% if loan_requests %}
+                  <h4 class="mb-1">
+                    <span class="badge bg-danger">{{loan_requests}}</span>
+                  </h4>
+                  {% endif %}
+              </div>
+              <div class="flex-shrink-0">
+                <div class="avtar avtar-l bg-light-success rounded-circle">
+                  <i class="ph-duotone ph-rocket f-28"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+
+    <div class="col-xxl-3 col-md-6">
+      <div class="card">
+        <a href="{% url 'dashboard:card-requests' %}">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="flex-grow-1 me-3">
+
+                <p class="mb-1 fw-medium text-muted">Card Requests</p>
+                {% if card_requests %}
+                <h4 class="mb-1">
+                  <span class="badge bg-danger">{{card_requests}}</span>
+                </h4>
+                {% endif %}
+              </div>
+              <div class="flex-shrink-0">
+                <div class="avtar avtar-l bg-light-info rounded-circle">
+                  <i class="ph-duotone ph-credit-card f-28"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="col-xxl-3 col-md-6">
+      <div class="card">
+        <a href="{% url 'dashboard:card-requests' %}">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="flex-grow-1 me-3">
+
+                <p class="mb-1 fw-medium text-muted">Card Management</p>
+                {% if account_statements %}
+                <h4 class="mb-1">
+                  <span class="badge bg-danger">{{card_requests}}</span>
+                </h4>
+                {% endif %}
+
+              </div>
+              <div class="flex-shrink-0">
+                <div class="avtar avtar-l bg-light-warning rounded-circle">
+                  <i class="ph-duotone ph-credit-card f-28"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+
+    <div class="col-xxl-3 col-md-6">
+      <div class="card">
+        <a href="{% url 'dashboard:cheque-requests' %}">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <div class="flex-grow-1 me-3">
+
+                <p class="mb-1 fw-medium text-muted">Cheque Requests</p>
+                {% if cheque_requests %}
+                <h4 class="mb-1">
+                  <span class="badge bg-danger">{{cheque_requests}}</span>
+                </h4>
+                {% endif %}
+
+              </div>
+              <div class="flex-shrink-0">
+                <div class="avtar avtar-l bg-light-primary rounded-circle">
+                  <i class="ph-duotone ph-credit-card f-28"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+
+  </div>
+</section>
+
+<section>
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h4>Customer Request Statistics</h4>
+        </div>
+        <div class="card-body">
+          <div id="profile-visit"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %} {% block extraScripts %}
+<script>
+  var customerVisitation = JSON.parse("{{ customer_visits|escapejs }}");
+
+  console.log(customerVisitation);
+
+  var optionsProfileVisit = {
+    annotations: {
+      position: "back",
+    },
+    dataLabels: {
+      enabled: false,
+    },
+    chart: {
+      type: "bar",
+      height: 300,
+    },
+    fill: {
+      opacity: 0.9,
+      colors: ["#5dd9b4"],
+    },
+
+    plotOptions: {},
+    series: [
+      {
+        name: "Count",
+        data: Object.values(customerVisitation),
+      },
+    ],
+    colors: "#435ebe",
+    xaxis: {
+      categories: Object.keys(customerVisitation),
+    },
+  };
+  var chartProfileVisits = new ApexCharts(
+    document.querySelector("#profile-visit"),
+    optionsProfileVisit
+  );
+
+  chartProfileVisits.render();
+</script>
+
+{% endblock %}

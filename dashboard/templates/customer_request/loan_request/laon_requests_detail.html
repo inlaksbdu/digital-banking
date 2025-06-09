@@ -1,0 +1,220 @@
+{% extends 'core_base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<section class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div
+        class="card-header text-center align-items-center justify-content-center {% if loan_request.status == 'PENDING' %} bg-light-warning {% elif loan_request.status == 'REJECTED' %} bg-light-danger {% elif loan_request.status == 'APPROVED' %}bg-light-success{% elif loan_request.status == 'REVIEWING' %}bg-light-primary {% elif loan_request.status == 'ACTION REQUIRED' %}bg-light-info {% endif %}"
+      >
+
+
+        <h6>{{ loan_request.status }}</h6>
+        <h2 class="pt-1">Loan Request</h2>
+        <small class="text-muted">{{ loan_request.date_created }}</small>
+      </div>
+
+      <div class="card-body pt-4">
+        <!-- Customer Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">CUSTOMER INFORMATION</small>
+          </div>
+        </div>
+        <div class="row pt-2">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer ID</label>
+              <p class="form-control-static">
+                {{ loan_request.user.t24_customer_id }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Customer Name</label>
+              <p class="form-control-static">
+                {{ loan_request.user.fullname }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Phone Number</label>
+              <p class="form-control-static">
+                {{ loan_request.user.phone_number }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <hr />
+
+        <!-- Loan Request Details Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">REQUEST DETAILS</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Application ID</label>
+              <p class="form-control-static">
+                {{ loan_request.application_id }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Account #</label>
+              <p class="form-control-static">
+                {{ loan_request.source_account.account_number }}
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="row pt-3">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Requested Amount</label>
+              <p class="form-control-static">
+                {{ loan_request.amount|floatformat:2 }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="disabledInput">Duration</label>
+              <p class="form-control-static">
+                {{ loan_request.duration }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <hr />
+
+        <!-- Loan Category Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">LOAN CATEGORY DETAILS</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Product ID</label>
+              <p class="form-control-static">
+                {{ loan_request.loan_category.product_id }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Loan Product Group</label>
+              <p class="form-control-static">
+                {{ loan_request.loan_category.loan_product_group }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Interest Rate</label>
+              <p class="form-control-static">
+                {{ loan_request.loan_category.interest }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="row pt-3">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Processing Fee</label>
+              <p class="form-control-static">
+                {{ loan_request.loan_category.processing_fee }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Term</label>
+              <p class="form-control-static">
+                {{ loan_request.loan_category.term }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Description</label>
+              <p class="form-control-static">
+                {{ loan_request.loan_category.description }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <hr />
+
+        <!-- Date Information Section -->
+        <div class="row">
+          <div class="col-md-12">
+            <small class="text-muted">META DATA</small>
+          </div>
+        </div>
+        <div class="row pt-3">
+
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Date Created</label>
+              <p class="form-control-static">
+                {{ loan_request.date_created }}
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label for="disabledInput">Last Updated</label>
+              <p class="form-control-static">{{ loan_request.last_updated }}</p>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 text-right">
+
+    <div class="card">
+        <div class="card-body">
+            <h5>Notify Customer</h5>
+            {% if  loan_request.status == 'PENDING'  or loan_request.status == 'REVIEWING' or loan_request.status == 'ACTION REQUIRED' %}
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                {{ change_status_form | crispy }}
+              <div>
+                <input type="submit" class="btn btn-md btn-success" value="Notify Customer">
+              </div>
+            </form>
+            <br>
+
+            {% else %}
+            <p>Customer has already been notified</p>
+            <br>
+            <h6>Comments</h6>
+            <p>{{ loan_request.comments }}</p>
+            {% endif %}
+            <br>
+
+        </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
