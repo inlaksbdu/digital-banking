@@ -57,37 +57,20 @@
     </div>
 
     <div class="col-md-8">
-      <div class="col-md-5">
+      <div class="col-md-7">
         <div class="card">
             <div class="card-body">
-            <h4>Verify Email</h4>
+            <h4>Complete Customer KYC</h4>
             <form method="post" class="pt-4">
                 {% csrf_token %}
 
-                {% if token %}
-                    <div class="d-flex justify-content-center align-items-center">
 
-                        <div class="col-12 col-md-12">
-                            <input  type="text" class="form-control  fs-4" value="{{ inputed_email }}" disabled/>
-
-                            <input name="otp" type="text" inputmode="numeric" pattern="\d*" class="form-control text-center fs-4 mt-3"
-                                    placeholder="Enter OTP Code"
-                                    required
-                                    oninput="this.value = this.value.replace(/[^0-9]/g, '')"
-                                />
-                        </div>
-                    </div>
-                    <div class="d-grid mt-4">
-                        <button type="submit" class="btn btn-primary p-2">Verify OTP</button>
-                    </div>
-                {% else %}
                     {{ form | crispy }}
                     <button type="submit" class="btn btn-primary">Submit</button>
-                {% endif %}
 
 
             </form>
-            </div>
+        </div>
       </div>
       </div>
     </div>

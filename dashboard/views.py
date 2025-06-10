@@ -17,6 +17,7 @@ from django.core.cache import cache
 from django.contrib.auth.hashers import make_password, check_password
 from . import forms
 from cbs import models as cbsmodel
+from django.db import transaction
 
 # Create your views here.
 
@@ -1008,6 +1009,13 @@ def verify_phone_number(request):
 
             if saved_otp == entered_otp:
                 messages.success(request, "OTP verified successfully")
+                # save phone number in cache
+                cache.set(
+                    "_customer_onboarding_phone_number",
+                    inputed_phone_number,
+                    60 * 60 * 24,
+                )
+
                 return redirect("dashboard:onboarding-verify-email")
             else:
                 messages.error(request, "OTP verification failed")
@@ -1076,6 +1084,7 @@ def verify_email(request):
 
             if saved_otp == entered_otp:
                 messages.success(request, "OTP verified successfully")
+                cache.set("_customer_email", inputed_email, 60 * 60 * 24)
                 return redirect("dashboard:onboarding-new-customer-kyc")
             else:
                 messages.error(request, "Invlaid OTP")
@@ -1120,9 +1129,56 @@ Thank you.
     return render(request, "customer_onboarding/verify_email.html", context=context)
 
 
+@transaction.atomic
 def customer_onboarding_kyc(request):
     token = request.GET.get("token")
     inputed_email = None
     form = forms.SignUpNewCustomerForm()
+
+    if form.is_valid():
+        first_name = form.cleaned_data["first_name"]
+        last_name = form.cleaned_data["last_name"]
+        nationality = form.cleaned_data["nationality"]
+        gender = form.cleaned_data["gender"]
+        date_of_birth = form.cleaned_data["date_of_birth"]
+        profile_picture = form.cleaned_data["profile_picture"]
+        id_front = form.cleaned_data["id_front"]
+        id_back = form.cleaned_data["id_back"]
+        id_number = form.cleaned_data["id_number"]
+        date_of_issuance = form.cleaned_data["date_of_issuance"]
+        date_of_expiry = form.cleaned_data["date_of_expiry"]
+        place_of_issuance = form.cleaned_data["place_of_issuance"]
+        phone_number = cache.get("_customer_onboarding_phone_number")
+        email = cache.get("_customer_email")
+
+        # create user_account and customer profile
+        password = generate_reference_id(length=10)
+        pin = generate_otp(length=6)
+        user_account = CustomUser.objects.create_user(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            secure_pin=make_password("123456"),
+            phone_number=phone_number,
+        )
+        user_account.set_password(password)
+        user_account.secure_pin = make_password(pin)
+        user_account.save()
+
+        customer_profile = CustomerProfile.objects.create(
+            user_account=user_account,
+            national_id=id_number,
+            nationality=nationality,
+            gender=gender,
+            date_of_birth=date_of_birth,
+            profile_picture=profile_picture,
+            id_front=id_front,
+            id_back=id_back,
+            place_of_issue=place_of_issuance,
+            date_of_issuance=date_of_issuance,
+            date_of_expiry=date_of_expiry,
+        )
+
+    # create and send password and mobile pin to the user via email
     context = {"form": form, "token": token, "inputed_email": inputed_email}
     return render(request, "customer_onboarding/cutomer_kyc.html", context=context)

@@ -411,7 +411,11 @@ class SignUpExistingCustomerVerifySerializer(serializers.Serializer):
 class SignUpExistingCustomerSerializer(serializers.Serializer):
     email = serializers.EmailField()
     account_number = serializers.CharField()
-    security_questions = serializers.ListField(child=SignupSecurityQuestionSerializer())
+    security_questions = serializers.ListField(
+        child=SignupSecurityQuestionSerializer(),
+        required=False,
+        allow_null=True,
+    )
     password = serializers.CharField()
     secure_pin = serializers.CharField()
     verification_code = serializers.CharField()

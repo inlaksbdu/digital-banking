@@ -163,8 +163,6 @@ class NewCustomerVerifyEmailForm(forms.Form):
 class SignUpNewCustomerForm(forms.Form):
     first_name = forms.CharField()
     last_name = forms.CharField()
-    email = forms.EmailField()
-    phone_number = PhoneNumberField()
     nationality = forms.CharField()
     gender = forms.CharField()
     date_of_birth = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
@@ -175,11 +173,6 @@ class SignUpNewCustomerForm(forms.Form):
     date_of_issuance = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
     date_of_expiry = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
     place_of_issuance = forms.CharField()
-    # Assuming you'll manually handle security questions in the view or clean method
-    security_questions = forms.JSONField(required=False)
-    password = forms.CharField(widget=forms.PasswordInput())
-    secure_pin = forms.CharField(widget=forms.PasswordInput())
-    verification_code = forms.CharField()
 
     def clean_security_questions(self):
         data = self.cleaned_data.get("security_questions")
