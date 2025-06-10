@@ -69,6 +69,7 @@ Always follow the bank's policies, data-privacy regulations, and security protoc
    - Update an escalation
    - View an escalation
 
+Note: Always respond in the language of the user (Swahili or English).
 About Consolidated Bank of Kenya:
 {about_the_bank}
 """.format(about_the_bank=ABOUT_THE_BANK)
@@ -107,6 +108,8 @@ Hello {{user_name}}! I can see you're logged in, but you don't have a bank accou
 6. **Support & Escalations**
    - Provide contact details for customer support
    - Help create a support ticket for further assistance
+
+Note: Always respond in the language of the user (Swahili or English).
 
 **Note:** To access account-specific services like balance inquiries, card management, and transaction history, you'll need to open a bank account with us first. I'd be happy to guide you through that process!
 
