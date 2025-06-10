@@ -53,7 +53,7 @@ class IdCardField(models.JSONField):
 
 class IdCard(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         "accounts.CustomUser",
         on_delete=models.CASCADE,
         related_name="id_card",
