@@ -77,7 +77,7 @@ class ChatStreamView(APIView):
                         id=thread_id, user=request.user
                     )
                 except ConversationThread.DoesNotExist:
-                    thread = ConversationThread.objects.create(user=request.user)
+                    thread = ConversationThread.objects.create(user=request.user, id=thread_id)
             else:
                 thread = ConversationThread.objects.create(user=request.user)
 
@@ -131,7 +131,7 @@ class ChatStreamView(APIView):
                 config=RunnableConfig(
                     configurable={
                         "user": {"id": user_id},
-                        "thread_id": f"{thread_id}-{user_id}",
+                        "thread_id": thread_id,
                     }
                 ),
             ):

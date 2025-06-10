@@ -1,5 +1,5 @@
 import operator
-from typing import Annotated, Any, Dict, TypedDict
+from typing import Annotated, Any, Dict, List, TypedDict
 
 from loguru import logger
 import orjson
@@ -8,7 +8,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
     AIMessageChunk,
-    BaseMessage,
+    AnyMessage,
     HumanMessage,
     SystemMessage,
     ToolMessage,
@@ -25,7 +25,7 @@ from chatbot.assistant.prompt import SYSTEM_PROMPT, NON_CUSTOMER_PROMPT
 
 
 class WorkflowState(TypedDict):
-    messages: Annotated[list[BaseMessage], operator.add]
+    messages: Annotated[List[AnyMessage], operator.add]
     user_longitude: float | None
     user_latitude: float | None
 
