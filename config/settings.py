@@ -144,6 +144,7 @@ else:
         }
     }
 
+DB_URI = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DB')}"
 # Password validation
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
@@ -548,3 +549,6 @@ DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 
 ID_ANALYZER_API_KEY = os.getenv("ID_ANALYZER_API_KEY", "")
+
+
+ESCALATE_TO = os.getenv("ESCALATE_TO")
