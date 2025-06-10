@@ -136,4 +136,15 @@ urlpatterns = [
         views.payments_detail,
         name="payment-detail",
     ),
+    # ONBOARDING URLS
+    path(
+        "onboarding/new-customer/",
+        views.verify_phone_number,
+        name="onboarding-verify-phone",
+    ),
+    path(
+        "onboarding/existing-customer/",
+        views.verify_email,
+        name="onboarding-verify-email",
+    ),
 ]

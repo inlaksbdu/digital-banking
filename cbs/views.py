@@ -1471,7 +1471,8 @@ class ComplaintViewset(ModelViewSet):
 
     @transaction.atomic
     def perform_create(self, serializer):
-        files = self.request.data.getlist("files", [])
+        # files = self.request.data.getlist("files", [])
+        files = self.request.FILES.getlist("files", [])
         serializer.is_valid(raise_exception=True)
         serializer.validated_data.pop("files")
         instance = serializer.save(user=self.request.user)

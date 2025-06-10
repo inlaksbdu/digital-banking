@@ -1,0 +1,81 @@
+{% extends 'core_base.html' %} {% load crispy_forms_tags %} {% block content %}
+<div class="p-5">
+  <div class="row">
+    <div class="col-md-12">
+      <h2>New Customer OnBoarding</h2>
+    </div>
+  </div>
+  <div class="row mt-4">
+    <div class="col-md-4">
+      <div class="col-xl-12 col-md-12">
+        <div class="card task-card">
+          <div class="card-header"><h5>Onboarding Steps</h5></div>
+          <div class="card-body">
+            <ul class="list-unstyled task-list">
+
+              <li>
+                <i class="task-icon bg-primary"></i>
+                <p class="m-b-5">Verify Phone Number</p>
+                <small class="text-muted">
+                  Please provide your email and verify OTP
+                </small>
+              </li>
+
+              <!-- <li>
+                <i class="feather icon-check f-w-600 task-icon bg-success"></i>
+                <p class="m-b-5">Verify Phone Number</p>
+                <small class="text-muted">
+                  Please provide your phone number and verify OTP
+                </small>
+              </li> -->
+
+              <li>
+                <i class="task-icon shadow-none" style="background-color: #eee !important;"></i>
+                <p class="m-b-5">Verify Email Address</p>
+                <small class="text-muted">
+                  Please provide your email and verify OTP
+                </small>
+              </li>
+
+
+              <li>
+                <i class="task-icon shadow-none" style="background-color: #eee !important;"></i>
+                <p class="m-b-5">Complete KYC</p>
+                <small class="text-muted">
+                  Please complate fill and complete required fields and upload documents
+                </small>
+              </li>
+
+
+              <li class="p-b-15 m-b-10">
+                <i class="task-icon shadow-none" style="background-color: #eee !important;"></i>
+                <p class="m-b-5">Complete</p>
+                <small class="text-muted">
+                  A successful Onboarding
+                </small>
+              </li>
+
+
+
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="col-md-5">
+        <div class="card">
+        <div class="card-body">
+          <h4>Verify Phone Number</h4>
+          <form method="post" class="pt-4">
+            {% csrf_token %} {{ form | crispy }}
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </form>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

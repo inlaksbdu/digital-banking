@@ -952,3 +952,60 @@ def payments_detail(request, uuid):
         "payments/payment_detail.html",
         context=context,
     )
+
+
+"""
+
+CUTOMER ONBOARDING
+
+- New Cusomter onboarding
+    - Verify Phone Number
+    - Verify Email
+    - Fill the Form
+    - Complate Registration
+
+- Existing Customer Signup
+    - Verify Email
+    - Verify Customer Account
+    - Fill the Form
+    - Complate Registration
+
+"""
+
+
+def verify_phone_number(request):
+    form = forms.NewCustomerVerifyPhoneForm()
+
+    if request.method == "POST":
+        form = forms.NewCustomerVerifyPhoneForm(request.POST)
+        if form.is_valid():
+            phone_number = form.cleaned_data["phone_number"]
+
+            # prepare and send OTP to the phone number
+
+            return redirect("dashboard:verify-email")
+
+    context = {"form": form}
+    return render(
+        request, "customer_onboarding/verify_phone_number.html", context=context
+    )
+
+
+def verify_email(request):
+    form = forms.NewCustomerVerifyEmailForm()
+
+    if request.method == "POST":
+        form = forms.NewCustomerVerifyEmailForm(request.POST)
+        if form.is_valid():
+            phone_number = form.cleaned_data["phone_number"]
+
+            # prepare and send OTP to the phone number
+
+            return redirect("dashboard:verify-email")
+    context = {"form": form}
+
+    return render(request, "customer_onboarding/verify_email.html", context=context)
+
+
+def customer_onboarding(request):
+    return render(request, "customer_onboarding.html")

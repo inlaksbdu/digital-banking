@@ -2,6 +2,8 @@ from django import forms
 from datatable import models as datatables
 from cbs import models as cbsmodel
 from accounts.models import CustomUser
+from django import forms
+from phonenumber_field.formfields import PhoneNumberField
 
 
 class AddQuestionForm(forms.ModelForm):
@@ -147,3 +149,11 @@ class CardRequestStatusChange(forms.ModelForm):
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "form-control"
             visible.field.required = True
+
+
+class NewCustomerVerifyPhoneForm(forms.Form):
+    phone_number = PhoneNumberField()
+
+
+class NewCustomerVerifyEmailForm(forms.Form):
+    email = forms.EmailField(label="Email")
