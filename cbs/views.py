@@ -1474,11 +1474,11 @@ class ComplaintViewset(ModelViewSet):
         # files = self.request.data.getlist("files", [])
         files = self.request.FILES.getlist("files", [])
         serializer.is_valid(raise_exception=True)
-        serializer.validated_data.pop("files")
+        # serializer.validated_data.pop("files")
         instance = serializer.save(user=self.request.user)
 
         print("=== files: ", files)
-
+        files = []
         for file in files:
             models.ComplaintFile.objects.create(
                 file=file,

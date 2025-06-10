@@ -745,11 +745,11 @@ class ComplaintSerializer(serializers.ModelSerializer):
 
 
 class ComplaintCreateSerializer(serializers.ModelSerializer):
-    files = serializers.ListField(
-        child=serializers.FileField(),
-        required=False,
-        allow_null=True,
-    )
+    # files = serializers.ListField(
+    #     child=serializers.FileField(),
+    #     required=False,
+    #     allow_null=True,
+    # )
 
     def to_representation(self, instance):
         return ComplaintSerializer(instance).data
@@ -760,7 +760,7 @@ class ComplaintCreateSerializer(serializers.ModelSerializer):
             "category",
             "description",
             "priority",
-            "files",
+            # "files",
         )
 
 

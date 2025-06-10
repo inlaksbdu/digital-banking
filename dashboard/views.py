@@ -1123,6 +1123,6 @@ Thank you.
 def customer_onboarding_kyc(request):
     token = request.GET.get("token")
     inputed_email = None
-    form = forms.NewCustomerVerifyEmailForm()
+    form = forms.SignUpNewCustomerForm()
     context = {"form": form, "token": token, "inputed_email": inputed_email}
     return render(request, "customer_onboarding/cutomer_kyc.html", context=context)
