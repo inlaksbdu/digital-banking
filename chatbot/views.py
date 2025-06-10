@@ -1,11 +1,15 @@
 import time
+from venv import logger
 
 import orjson
+from django.conf import settings
 from django.db import transaction
 from django.http import StreamingHttpResponse
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg_pool import ConnectionPool
 from rest_framework import status
 from rest_framework.generics import (
     CreateAPIView,
@@ -17,15 +21,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from chatbot.assistant.tools.account_balance import AccountBalanceTool
 from chatbot.assistant.tools.branches import BranchLocatorTool
 from chatbot.assistant.tools.card_request import CardRequestTool
+from chatbot.assistant.tools.complaints import ComplaintTool
 from chatbot.assistant.tools.customer_accounts import CustomerAccountsTool
+from chatbot.assistant.tools.escation import EscalationTool
 from chatbot.assistant.workflow import AssistantWorkflow
 
-from .models import ConversationMessage, ConversationThread
+from .models import ConversationEntry, ConversationThread
 from .serializers import (
     ChatMessageSerializer,
     ConversationThreadCreateSerializer,
@@ -38,15 +43,10 @@ tools = [
     BranchLocatorTool(),
     CustomerAccountsTool(),
     CardRequestTool(),
+    ComplaintTool(),
     AccountBalanceTool(),
+    EscalationTool(),
 ]
-memory = InMemorySaver()
-agent = AssistantWorkflow(
-    llm,
-    tools,
-    "You are a helpful assistant that can help with customer accounts and branch locator.",
-)
-agent.build_graph(checkpoint_saver=memory)
 
 
 @extend_schema_view(
@@ -62,10 +62,14 @@ class ChatStreamView(APIView):
     def post(self, request: Request):
         serializer = ChatMessageSerializer(data=request.data)
 
+        logger.debug(f"Creating new thread for user {request.user}")
+
         with transaction.atomic():
             serializer.is_valid(raise_exception=True)
             message = serializer.validated_data["message"]  # type: ignore
             thread_id = serializer.validated_data.get("thread_id")  # type: ignore
+            user_longitude = serializer.validated_data.get("user_longitude")  # type: ignore
+            user_latitude = serializer.validated_data.get("user_latitude")  # type: ignore
 
             if thread_id:
                 try:
@@ -77,25 +81,58 @@ class ChatStreamView(APIView):
             else:
                 thread = ConversationThread.objects.create(user=request.user)
 
-            _ = ConversationMessage.objects.create(
-                thread=thread, sender="human", content=message
+            pool = ConnectionPool(
+                conninfo=settings.DB_URI,
+                max_size=20,
+                kwargs={
+                    "autocommit": True,
+                    "prepare_threshold": 0,
+                },
             )
-
+            checkpointer = PostgresSaver(pool)  # type: ignore
+            checkpointer.setup()
+            agent = AssistantWorkflow(
+                llm=llm,
+                tools=tools,
+            )
+            agent.build_graph(checkpoint_saver=checkpointer)
             return StreamingHttpResponse(
-                self._stream_response(message, str(thread.id), request.user.id, thread),
+                self._stream_response(
+                    agent,
+                    message,
+                    str(thread.id),
+                    request.user.id,
+                    thread,
+                    user_longitude,
+                    user_latitude,
+                ),
                 content_type="text/event-stream",
                 headers={
                     "Cache-Control": "no-cache",
                 },
             )
 
-    def _stream_response(self, message, thread_id, user_id, thread):
+    def _stream_response(
+        self,
+        agent: AssistantWorkflow,
+        message: str,
+        thread_id: str,
+        user_id: str,
+        thread: ConversationThread,
+        user_longitude: float | None,
+        user_latitude: float | None,
+    ):
         try:
             ai_response_content = ""
             for event in agent.stream(
-                message,
-                RunnableConfig(
-                    configurable={"user": {"id": str(user_id)}, "thread_id": thread_id}
+                human_message=message,
+                user_longitude=user_longitude,
+                user_latitude=user_latitude,
+                config=RunnableConfig(
+                    configurable={
+                        "user": {"id": user_id},
+                        "thread_id": f"{thread_id}-{user_id}",
+                    }
                 ),
             ):
                 if event.get("event") == "llm":
@@ -107,16 +144,16 @@ class ChatStreamView(APIView):
                         {
                             "event": event_name,
                             "id": str(time.time()),
-                            "data": orjson.dumps(event).decode("utf-8"),
+                            "data": event,
                         }
                     )
                     + b"\n"
                 )
 
-            ConversationMessage.objects.create(
+            ConversationEntry.objects.create(
                 thread=thread,
-                sender="ai",
-                content=ai_response_content or "Failed to generate response",
+                human_message=message,
+                ai_message=ai_response_content or "Failed to generate response",
             )
 
         except Exception as e:
@@ -125,7 +162,7 @@ class ChatStreamView(APIView):
                     {
                         "event": "error",
                         "id": str(time.time()),
-                        "data": orjson.dumps({"message": str(e)}).decode("utf-8"),
+                        "data": {"message": str(e)},
                     }
                 )
                 + b"\n"
@@ -137,13 +174,11 @@ class ConversationListView(ListAPIView):
     serializer_class = ConversationThreadListSerializer
 
     def get_queryset(self):  # type: ignore[override]
-        if getattr(
-            self, "swagger_fake_view", False
-        ):  # Prevent errors during schema generation
+        if getattr(self, "swagger_fake_view", False):
             return ConversationThread.objects.none()
         return ConversationThread.objects.filter(
             user=self.request.user
-        ).prefetch_related("messages")
+        ).prefetch_related("entries")
 
 
 class ConversationDetailView(RetrieveAPIView):
@@ -153,27 +188,21 @@ class ConversationDetailView(RetrieveAPIView):
     lookup_url_kwarg = "thread_id"
 
     def get_queryset(self):  # type: ignore[override]
-        if getattr(
-            self, "swagger_fake_view", False
-        ):  # Prevent errors during schema generation
+        if getattr(self, "swagger_fake_view", False):
             return ConversationThread.objects.none()
         return ConversationThread.objects.filter(
             user=self.request.user
-        ).prefetch_related("messages")
+        ).prefetch_related("entries")
 
 
 class ConversationDeleteView(DestroyAPIView):
-    """Delete a conversation thread"""
-
     permission_classes = [IsAuthenticated]
     serializer_class = ConversationThreadSerializer
     lookup_field = "id"
     lookup_url_kwarg = "thread_id"
 
     def get_queryset(self):  # type: ignore[override]
-        if getattr(
-            self, "swagger_fake_view", False
-        ):  # Prevent errors during schema generation
+        if getattr(self, "swagger_fake_view", False):
             return ConversationThread.objects.none()
         return ConversationThread.objects.filter(user=self.request.user)
 
