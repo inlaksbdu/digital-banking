@@ -138,13 +138,18 @@ urlpatterns = [
     ),
     # ONBOARDING URLS
     path(
-        "onboarding/new-customer/",
+        "onboarding/new-customer/verify-phone/",
         views.verify_phone_number,
         name="onboarding-verify-phone",
     ),
     path(
-        "onboarding/existing-customer/",
+        "onboarding/new-customer/verify-email/",
         views.verify_email,
         name="onboarding-verify-email",
+    ),
+    path(
+        "onboarding/new-customer/complete-kyc/",
+        views.customer_onboarding_kyc,
+        name="onboarding-new-customer-kyc",
     ),
 ]

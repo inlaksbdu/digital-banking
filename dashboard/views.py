@@ -973,39 +973,156 @@ CUTOMER ONBOARDING
 """
 
 
+# password = phone number
+# otp = generated
+# email = phone number
+
+
 def verify_phone_number(request):
+    token = request.GET.get("token")
+    inputed_phone_number = None
     form = forms.NewCustomerVerifyPhoneForm()
 
+    # check check outsie if there is token
+    if token:
+        decoded_token = decode_token(token=token)
+        if not decoded_token.get("email"):
+            # token has expired
+            messages.error(request, "Token Expired, please resend token")
+            return redirect("dashboard:onboarding-verify-phone")
+
+        inputed_phone_number = decoded_token.get("email")
+
     if request.method == "POST":
-        form = forms.NewCustomerVerifyPhoneForm(request.POST)
-        if form.is_valid():
-            phone_number = form.cleaned_data["phone_number"]
+        # check if there is a token verify otp
+        if token:
+            decoded_token = decode_token(token=token)
+            if not decoded_token.get("email"):
+                # token has expired
+                messages.error(request, "Token Expired, please resend token")
+                return redirect("dashboard:onboarding-verify-phone")
 
-            # prepare and send OTP to the phone number
+            inputed_phone_number = decoded_token.get("email")
+            saved_otp = decoded_token.get("otp")
+            entered_otp = request.POST.get("otp")
 
-            return redirect("dashboard:verify-email")
+            if saved_otp == entered_otp:
+                messages.success(request, "OTP verified successfully")
+                return redirect("dashboard:onboarding-verify-email")
+            else:
+                messages.error(request, "OTP verification failed")
 
-    context = {"form": form}
+        else:
+            form = forms.NewCustomerVerifyPhoneForm(request.POST)
+            if form.is_valid():
+                phone_number = form.cleaned_data["phone_number"]
+                print("==== phone number: ", phone_number)
+                generated_otp = generate_otp(6)
+                token = create_token(
+                    email=str(phone_number), password="", otp=generated_otp
+                )
+
+                # send an sms with the OTP
+                body = """
+Dear Customer, Your OTP Code for Account Onboarding is {otp}.
+Please do not share this code with anyone.
+
+Thank you.
+                """.format(
+                    otp=generated_otp
+                )
+
+                generic_send_sms.delay(to=str(phone_number), body=body)
+
+                # prepare and send OTP to the phone number
+                messages.success(request, "OTP sent to your phone number")
+                return redirect(
+                    f"{reverse('dashboard:onboarding-verify-phone')}?token={token}"
+                )
+
+    context = {"form": form, "token": token, "phone_number": inputed_phone_number}
     return render(
         request, "customer_onboarding/verify_phone_number.html", context=context
     )
 
 
 def verify_email(request):
+    token = request.GET.get("token")
+    inputed_email = None
     form = forms.NewCustomerVerifyEmailForm()
 
+    # check check outsie if there is token
+    if token:
+        decoded_token = decode_token(token=token)
+        if not decoded_token.get("email"):
+            # token has expired
+            messages.error(request, "OTP Token Expired, please resend otp")
+            return redirect("dashboard:onboarding-verify-email")
+
+        inputed_email = decoded_token.get("email")
+
     if request.method == "POST":
-        form = forms.NewCustomerVerifyEmailForm(request.POST)
-        if form.is_valid():
-            phone_number = form.cleaned_data["phone_number"]
+        # check if there is a token verify otp
+        if token:
+            decoded_token = decode_token(token=token)
+            if not decoded_token.get("email"):
+                # token has expired
+                messages.error(request, "Token Expired, please resend token")
+                return redirect("dashboard:onboarding-verify-email")
 
-            # prepare and send OTP to the phone number
+            inputed_email = decoded_token.get("email")
+            saved_otp = decoded_token.get("otp")
+            entered_otp = request.POST.get("otp")
 
-            return redirect("dashboard:verify-email")
-    context = {"form": form}
+            if saved_otp == entered_otp:
+                messages.success(request, "OTP verified successfully")
+                return redirect("dashboard:onboarding-new-customer-kyc")
+            else:
+                messages.error(request, "Invlaid OTP")
 
+        else:
+            form = forms.NewCustomerVerifyEmailForm(request.POST)
+            if form.is_valid():
+                email = form.cleaned_data["email"]
+                generated_otp = generate_otp(6)
+                token = create_token(email=str(email), password="", otp=generated_otp)
+
+                # send an sms with the OTP
+                body = """
+Dear Customer, Your OTP Code for Account Onboarding is {otp}.
+Please do not share this code with anyone.
+
+Thank you.
+""".format(
+                    otp=generated_otp
+                )
+
+                # send email
+                payload = {
+                    "emailType": "account_verification_otp",
+                    "body": body,
+                    "otp": generated_otp,
+                    "subject": "Account Verification OTP",
+                }
+                generic_send_mail.delay(
+                    recipient=email,
+                    title="Account Verification",
+                    payload=payload,
+                )
+
+                # prepare and send OTP to the phone number
+                messages.success(request, "OTP sent to customer's email address")
+                return redirect(
+                    f"{reverse('dashboard:onboarding-verify-email')}?token={token}"
+                )
+
+    context = {"form": form, "token": token, "inputed_email": inputed_email}
     return render(request, "customer_onboarding/verify_email.html", context=context)
 
 
-def customer_onboarding(request):
-    return render(request, "customer_onboarding.html")
+def customer_onboarding_kyc(request):
+    token = request.GET.get("token")
+    inputed_email = None
+    form = forms.NewCustomerVerifyEmailForm()
+    context = {"form": form, "token": token, "inputed_email": inputed_email}
+    return render(request, "customer_onboarding/cutomer_kyc.html", context=context)

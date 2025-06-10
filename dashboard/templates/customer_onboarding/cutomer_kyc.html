@@ -13,33 +13,26 @@
           <div class="card-body">
             <ul class="list-unstyled task-list">
 
-              <li>
-                <i class="task-icon bg-primary"></i>
-                <p class="m-b-5">Verify Phone Number</p>
-                <small class="text-muted">
-                  Please provide your email and verify OTP
-                </small>
-              </li>
 
-              <!-- <li>
+              <li>
                 <i class="feather icon-check f-w-600 task-icon bg-success"></i>
                 <p class="m-b-5">Verify Phone Number</p>
                 <small class="text-muted">
                   Please provide your phone number and verify OTP
                 </small>
-              </li> -->
+              </li>
+
 
               <li>
-                <i class="task-icon shadow-none" style="background-color: #eee !important;"></i>
-                <p class="m-b-5">Verify Email Address</p>
+                <i class="feather icon-check f-w-600 task-icon bg-success"></i>
+                <p class="m-b-5">Verify Email</p>
                 <small class="text-muted">
                   Please provide your email and verify OTP
                 </small>
               </li>
 
-
-              <li>
-                <i class="task-icon shadow-none" style="background-color: #eee !important;"></i>
+                <li>
+                <i class="task-icon bg-primary"></i>
                 <p class="m-b-5">Complete KYC</p>
                 <small class="text-muted">
                   Please complate fill and complete required fields and upload documents
@@ -67,7 +60,7 @@
       <div class="col-md-5">
         <div class="card">
         <div class="card-body">
-          <h4>Verify Phone Number</h4>
+          <h4>Verify Email</h4>
           <form method="post" class="pt-4">
             {% csrf_token %}
 
@@ -75,7 +68,7 @@
                 <div class="d-flex justify-content-center align-items-center">
 
                     <div class="col-12 col-md-12">
-                        <input  type="text" class="form-control  fs-4" value="{{ phone_number }}" disabled/>
+                        <input  type="text" class="form-control  fs-4" value="{{ inputed_email }}" disabled/>
 
                         <input name="otp" type="text" inputmode="numeric" pattern="\d*" class="form-control text-center fs-4 mt-3"
                                 placeholder="Enter OTP Code"
