@@ -314,6 +314,37 @@
                 </div>
             </div>
 
+            {% elif emailType == 'customer_onboarding' %}
+            <!-- Account creation confirmation -->
+            <div class="highlight-box" style="text-align: center;">
+                <div class="info-title" style="color: rgb(0, 112, 45); font-size: 18px; font-weight: 600; margin-bottom: 15px;">
+                    🎉 Welcome to Consolidated Bank of Kenya!
+                </div>
+                <div class="info-text">
+                    Your account has been successfully created. You can now access all our banking services.
+                </div>
+                <hr>
+                <div style="font-size: 15px; color: #444; line-height: 1.6;">
+
+                    <p><strong style="color: rgb(0, 112, 45);">Account Name:
+                    </strong> {{ account_name }}</p>
+
+                    <p><strong style="color: rgb(0, 112, 45);">Phone Number:
+                    </strong> {{ phone_number }}</p>
+
+                    <p><strong style="color: rgb(0, 112, 45);">Email:
+                    </strong> {{ email }}</p>
+
+                    <p><strong style="color: rgb(0, 112, 45);">Temporay Password:
+                    </strong> {{ password }}</p>
+
+                    <p><strong style="color: rgb(0, 112, 45);">Account PIN:
+                    </strong> {{ secure_pin }}</p>
+
+
+                </div>
+            </div>
+
             {% elif emailType == 'account_created' %}
             <!-- Account creation confirmation -->
             <div class="highlight-box" style="text-align: center;">

@@ -3,11 +3,13 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login  # , logout
 from django.contrib import messages
+from loguru import logger
 from accounts.models import CustomUser, CustomerProfile
 from django.db.models import Q
 from django.urls import reverse
 from accounts.tasks import generic_send_mail, generic_send_sms
 from helpers.functions import generate_otp, generate_reference_id
+from t24.t24_requests import T24Requests
 from .tasks import log_action
 from helpers.decorator import view_permission, is_staff_user, edit_permission
 from django.http import JsonResponse
@@ -1135,49 +1137,86 @@ def customer_onboarding_kyc(request):
     inputed_email = None
     form = forms.SignUpNewCustomerForm()
 
-    if form.is_valid():
-        first_name = form.cleaned_data["first_name"]
-        last_name = form.cleaned_data["last_name"]
-        nationality = form.cleaned_data["nationality"]
-        gender = form.cleaned_data["gender"]
-        date_of_birth = form.cleaned_data["date_of_birth"]
-        profile_picture = form.cleaned_data["profile_picture"]
-        id_front = form.cleaned_data["id_front"]
-        id_back = form.cleaned_data["id_back"]
-        id_number = form.cleaned_data["id_number"]
-        date_of_issuance = form.cleaned_data["date_of_issuance"]
-        date_of_expiry = form.cleaned_data["date_of_expiry"]
-        place_of_issuance = form.cleaned_data["place_of_issuance"]
-        phone_number = cache.get("_customer_onboarding_phone_number")
-        email = cache.get("_customer_email")
+    if request.method == "POST":
+        form = forms.SignUpNewCustomerForm(data=request.POST, files=request.FILES)
+        if form.is_valid():
+            first_name = form.cleaned_data["first_name"]
+            last_name = form.cleaned_data["last_name"]
+            nationality = form.cleaned_data["nationality"]
+            gender = form.cleaned_data["gender"]
+            date_of_birth = form.cleaned_data["date_of_birth"]
+            profile_picture = form.cleaned_data["profile_picture"]
+            id_front = form.cleaned_data["id_front"]
+            id_back = form.cleaned_data["id_back"]
+            id_number = form.cleaned_data["id_number"]
+            date_of_issuance = form.cleaned_data["date_of_issuance"]
+            date_of_expiry = form.cleaned_data["date_of_expiry"]
+            place_of_issuance = form.cleaned_data["place_of_issuance"]
+            phone_number = cache.get("_customer_onboarding_phone_number")
+            email = cache.get("_customer_email")
 
-        # create user_account and customer profile
-        password = generate_reference_id(length=10)
-        pin = generate_otp(length=6)
-        user_account = CustomUser.objects.create_user(
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            secure_pin=make_password("123456"),
-            phone_number=phone_number,
-        )
-        user_account.set_password(password)
-        user_account.secure_pin = make_password(pin)
-        user_account.save()
+            # create user_account and customer profile
+            password = generate_reference_id(length=10)
+            pin = generate_otp(6)
+            user_account = CustomUser.objects.create_user(
+                email=email,
+                username=email,
+                first_name=first_name,
+                last_name=last_name,
+                secure_pin=make_password("123456"),
+                phone_number=phone_number,
+            )
+            user_account.set_password(password)
+            user_account.secure_pin = make_password(pin)
+            user_account.save()
 
-        customer_profile = CustomerProfile.objects.create(
-            user_account=user_account,
-            national_id=id_number,
-            nationality=nationality,
-            gender=gender,
-            date_of_birth=date_of_birth,
-            profile_picture=profile_picture,
-            id_front=id_front,
-            id_back=id_back,
-            place_of_issue=place_of_issuance,
-            date_of_issuance=date_of_issuance,
-            date_of_expiry=date_of_expiry,
-        )
+            _ = CustomerProfile.objects.create(
+                user_account=user_account,
+                nationality=nationality,
+                gender=gender,
+                date_of_birth=date_of_birth,
+                profile_picture=profile_picture,
+                id_front=id_front,
+                id_back=id_back,
+                id_number=id_number,
+                place_of_issue=place_of_issuance,
+                date_of_issuance=date_of_issuance,
+                date_of_expiry=date_of_expiry,
+            )
+
+            try:
+                core_banking_user = T24Requests.onboard_customer_v2(
+                    user_account=user_account
+                )
+
+                if not core_banking_user:
+                    messages.error(request, "Error creating account, please try again.")
+                messages.success(request, "Account Successfully created.")
+
+                # prepare and send account credentials via mail
+                payload = {
+                    "emailType": "customer_onboarding",
+                    "body": "",
+                    "subject": "Account Credentials",
+                    "account_name": user_account.fullname,
+                    "phone_number": str(user_account.phone_number),
+                    "email": user_account.email,
+                    "password": password,
+                    "secure_pin": pin,
+                }
+
+                generic_send_mail.delay(
+                    recipient=email,
+                    title="Account Credentials",
+                    payload=payload,
+                )
+                return redirect("dashboard:customers")
+            except Exception as e:
+                logger.error(f"Error creating account {e}")
+                messages.error(request, "Error creating account, please try again.")
+
+        else:
+            messages.error(request, form.errors)
 
     # create and send password and mobile pin to the user via email
     context = {"form": form, "token": token, "inputed_email": inputed_email}
