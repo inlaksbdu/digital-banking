@@ -1,27 +1,16 @@
 from rest_framework import serializers
-from .models import ConversationThread, ConversationMessage
+from .models import ConversationThread, ConversationEntry
 
 
-class ConversationMessageSerializer(serializers.ModelSerializer):
+class ConversationEntrySerializer(serializers.ModelSerializer):
     class Meta:
-        model = ConversationMessage
-        fields = ["id", "sender", "content", "timestamp"]
-        read_only_fields = ["id", "timestamp"]
-
-
-class ConversationMessageCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ConversationMessage
-        fields = ["sender", "content"]
-
-    def validate_sender(self, value):
-        if value not in ["human", "ai"]:
-            raise serializers.ValidationError("Sender must be either 'human' or 'ai'")
-        return value
+        model = ConversationEntry
+        fields = ["id", "human_message", "ai_message", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class ConversationThreadSerializer(serializers.ModelSerializer):
-    messages = ConversationMessageSerializer(many=True, read_only=True)
+    entries = ConversationEntrySerializer(many=True, read_only=True)
     message_count = serializers.SerializerMethodField()
     latest_message = serializers.SerializerMethodField()
 
@@ -32,24 +21,22 @@ class ConversationThreadSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "message_count",
-            "messages",
+            "entries",
             "latest_message",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_message_count(self, obj):
-        return obj.messages.count()
+        return obj.entries.count()
 
     def get_latest_message(self, obj):
-        latest = obj.messages.last()
+        latest = obj.entries.last()
         if latest:
             return {
                 "id": str(latest.id),
-                "sender": latest.sender,
-                "content": latest.content[:100] + "..."
-                if len(latest.content) > 100
-                else latest.content,
-                "timestamp": latest.timestamp.isoformat(),
+                "human_message": latest.human_message,
+                "ai_message": latest.ai_message,
+                "created_at": latest.created_at.isoformat(),
             }
         return None
 
@@ -64,18 +51,16 @@ class ConversationThreadListSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_message_count(self, obj):
-        return obj.messages.count()
+        return obj.entries.count()
 
     def get_latest_message(self, obj):
-        latest = obj.messages.last()
+        latest = obj.entries.last()
         if latest:
             return {
                 "id": str(latest.id),
-                "sender": latest.sender,
-                "content": latest.content[:100] + "..."
-                if len(latest.content) > 100
-                else latest.content,
-                "timestamp": latest.timestamp.isoformat(),
+                "human_message": latest.human_message,
+                "ai_message": latest.ai_message,
+                "created_at": latest.created_at.isoformat(),
             }
         return None
 
@@ -83,6 +68,8 @@ class ConversationThreadListSerializer(serializers.ModelSerializer):
 class ChatMessageSerializer(serializers.Serializer):
     message = serializers.CharField(max_length=5000, required=True)
     thread_id = serializers.UUIDField(required=False, allow_null=True)
+    user_longitude = serializers.FloatField(required=False, allow_null=True)
+    user_latitude = serializers.FloatField(required=False, allow_null=True)
 
     def validate_message(self, value):
         if not value.strip():
