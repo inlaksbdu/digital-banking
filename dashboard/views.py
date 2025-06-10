@@ -1026,7 +1026,12 @@ def verify_phone_number(request):
             form = forms.NewCustomerVerifyPhoneForm(request.POST)
             if form.is_valid():
                 phone_number = form.cleaned_data["phone_number"]
-                print("==== phone number: ", phone_number)
+                # check if a customer is registered with this email
+                if CustomUser.objects.filter(phone_number=phone_number).exists():
+                    messages.error(
+                        request, "Customer already registered with the same email"
+                    )
+                    return redirect("dashboard:onboarding-verify-phone")
                 generated_otp = generate_otp(6)
                 token = create_token(
                     email=str(phone_number), password="", otp=generated_otp
@@ -1095,6 +1100,14 @@ def verify_email(request):
             form = forms.NewCustomerVerifyEmailForm(request.POST)
             if form.is_valid():
                 email = form.cleaned_data["email"]
+                # check if a customer is registered with this email
+                if CustomUser.objects.filter(
+                    Q(email=email) | Q(username=email)
+                ).exists():
+                    messages.error(
+                        request, "Customer already registered with the same email"
+                    )
+                    return redirect("dashboard:onboarding-verify-email")
                 generated_otp = generate_otp(6)
                 token = create_token(email=str(email), password="", otp=generated_otp)
 
