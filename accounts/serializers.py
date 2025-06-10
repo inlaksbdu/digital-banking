@@ -319,6 +319,8 @@ class SignUpNewCustomerSerializer(serializers.Serializer):
     place_of_issuance = serializers.CharField()
     security_questions = serializers.ListField(
         child=SignupSecurityQuestionSerializer(),
+        required=False,
+        allow_null=True,
     )
     password = serializers.CharField()
     secure_pin = serializers.CharField()
